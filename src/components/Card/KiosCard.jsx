@@ -14,10 +14,11 @@ export default function KiosCard({
     navigate(`/MenuPage/${kiosId}`);
   };
 
-  // Tambahkan cache-busting query string supaya gambar selalu update
-  const imgSrc = image
-    ? `${import.meta.env.VITE_API_URL}/uploads/${image}?t=${Date.now()}`
-    : "/images/menudefault.jpg";
+  // Cache-busting & fallback default
+  const imgSrc =
+    image && image !== ""
+      ? `${import.meta.env.VITE_API_URL}/uploads/${image}?t=${Date.now()}`
+      : "/images/menudefault.jpg";
 
   return (
     <div className="bg-white p-3 rounded-lg border border-gray-300 flex gap-4 items-center shadow-sm transition">
@@ -25,13 +26,15 @@ export default function KiosCard({
         src={imgSrc}
         alt={name}
         onError={(e) => {
-          e.target.src = "/images/menudefault.jpg"; // fallback default
+          e.target.src = "/images/menudefault.jpg";
         }}
         className="w-24 h-24 object-cover rounded-md flex-shrink-0"
       />
       <div className="flex-1">
         <h4 className="font-extrabold text-base mb-1">{name.toUpperCase()}</h4>
-        <p className="text-base text-black">{description}</p>
+        <p className="text-base text-black">
+          {description || "Deskripsi kios belum tersedia"}
+        </p>
 
         {showButton && (
           <button
