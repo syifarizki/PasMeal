@@ -1,30 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import HeaderKios from "../components/Header/HeaderKios";
 import SearchBar from "../components/SearchBar";
 import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
 import Cart from "../components/Cart";
-
-const traditionalMenus = new Array(8).fill({
-  name: "Jajanan Tradisional",
-  description: "Berbagai macam jajanan dan gorengan",
-  image: "/images/asd.jpeg",
-});
+import { Kios } from "../services/Kios"; // pastikan sudah dibuat
 
 export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
   const [search, setSearch] = useState("");
-  // Hitung total item di cart
+  const [kiosList, setKiosList] = useState([]);
+
   const totalCartItems = Object.values(cart).reduce(
     (acc, item) => acc + item.qty,
     0
   );
 
+  // Fetch kios dari backend
+  const fetchKios = async () => {
+    const data = await Kios.getAll();
+    setKiosList(data);
+  };
+
+  useEffect(() => {
+    fetchKios();
+  }, []);
+
+  // Filter berdasarkan search
+  const filteredKios = kiosList.filter((kios) =>
+    kios.nama_kios.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="bg-gray-100 font-sans overflow-x-hidden">
-      {/* Header */}
       <HeaderKios />
 
-      {/* Cart Popup */}
       {showCart && (
         <Cart
           cart={cart}
@@ -53,14 +62,23 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
         {/* Kios */}
         <div className="flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {traditionalMenus.map((menu, index) => (
-              <KiosCard
-                key={index}
-                name={menu.name}
-                description={menu.description}
-                image={menu.image}
-              />
-            ))}
+            {filteredKios.length > 0 ? (
+              filteredKios.map((kios) => (
+                <KiosCard
+                  key={kios.id}
+                  kiosId={kios.id} // untuk navigasi menu
+                  name={kios.nama_kios}
+                  description={
+                    kios.deskripsi || "Deskripsi kios belum tersedia"
+                  }
+                  image={kios.gambar_kios || "/images/asd.jpeg"}
+                />
+              ))
+            ) : (
+              <p className="text-gray-500 col-span-full text-center">
+                Tidak ada kios ditemukan
+              </p>
+            )}
           </div>
         </div>
       </div>

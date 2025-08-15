@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function KiosCard({
+  kiosId,
   image,
   name,
   description,
@@ -10,19 +11,23 @@ export default function KiosCard({
   const navigate = useNavigate();
 
   const handleNavigate = () => {
-    navigate("/MenuPage"); 
+    navigate(`/MenuPage/${kiosId}`);
   };
+
+  const imgSrc = image
+    ? `${import.meta.env.VITE_API_URL}/uploads/${image}`
+    : "/images/menudefault.jpg";
 
   return (
     <div className="bg-white p-3 rounded-lg border border-gray-300 flex gap-4 items-center shadow-sm transition">
-      {/* Gambar */}
       <img
-        src={image}
+        src={imgSrc}
         alt={name}
+        onError={(e) => {
+          e.target.src = "/images/menudefault.jpg";
+        }}
         className="w-24 h-24 object-cover rounded-md flex-shrink-0"
       />
-
-      {/* Konten */}
       <div className="flex-1">
         <h4 className="font-extrabold text-base mb-1">{name.toUpperCase()}</h4>
         <p className="text-base text-black">{description}</p>
