@@ -1,9 +1,10 @@
+// KiosCard.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function KiosCard({
   kiosId,
-  gambar_kios, // pakai field dari backend
+  gambar_kios,
   name,
   description,
   showButton = true,
@@ -14,11 +15,10 @@ export default function KiosCard({
     navigate(`/MenuPage/${kiosId}`);
   };
 
-  // Cache-busting supaya gambar selalu update
-  const imgSrc =
-    gambar_kios && gambar_kios !== ""
-      ? `${import.meta.env.VITE_API_URL}/uploads/${gambar_kios}?t=${Date.now()}`
-      : "/images/menudefault.jpg";
+  // Pakai gambar terbaru dari backend, fallback ke default jika kosong
+  const imgSrc = gambar_kios
+    ? `${import.meta.env.VITE_API_URL}/uploads/${gambar_kios}?t=${Date.now()}`
+    : "/images/menudefault.jpg";
 
   return (
     <div className="bg-white p-3 rounded-lg border border-gray-300 flex gap-4 items-center shadow-sm transition">

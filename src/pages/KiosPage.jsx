@@ -4,7 +4,7 @@ import SearchBar from "../components/SearchBar";
 import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
 import Cart from "../components/Cart";
-import { Kios } from "../services/Kios"; // pastikan sudah dibuat
+import { Kios } from "../services/Kios"; // pastikan service axios sudah dibuat
 
 export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
   const [search, setSearch] = useState("");
@@ -17,8 +17,12 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
 
   // Fetch kios dari backend
   const fetchKios = async () => {
-    const data = await Kios.getAll();
-    setKiosList(data);
+    try {
+      const data = await Kios.getAll(); // GET /kios
+      setKiosList(data);
+    } catch (err) {
+      console.error("Gagal ambil kios:", err);
+    }
   };
 
   useEffect(() => {
@@ -32,8 +36,10 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
 
   return (
     <div className="bg-gray-100 font-sans overflow-x-hidden">
+      {/* Header */}
       <HeaderKios />
 
+      {/* Cart Popup */}
       {showCart && (
         <Cart
           cart={cart}
@@ -71,7 +77,13 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
                   description={
                     kios.deskripsi || "Deskripsi kios belum tersedia"
                   }
-                  image={kios.gambar_kios || "/images/asd.jpeg"}
+                  image={
+                    kios.gambar_kios
+                      ? `${import.meta.env.VITE_API_URL}/uploads/${
+                          kios.gambar_kios
+                        }?t=${Date.now()}`
+                      : "/images/menudefault.jpg"
+                  }
                 />
               ))
             ) : (
