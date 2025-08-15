@@ -14,8 +14,9 @@ export default function KiosCard({
     navigate(`/MenuPage/${kiosId}`);
   };
 
+  // Tambahkan cache-busting query string supaya gambar selalu update
   const imgSrc = image
-    ? `${import.meta.env.VITE_API_URL}/uploads/${image}`
+    ? `${import.meta.env.VITE_API_URL}/uploads/${image}?t=${Date.now()}`
     : "/images/menudefault.jpg";
 
   return (
@@ -24,7 +25,7 @@ export default function KiosCard({
         src={imgSrc}
         alt={name}
         onError={(e) => {
-          e.target.src = "/images/menudefault.jpg";
+          e.target.src = "/images/menudefault.jpg"; // fallback default
         }}
         className="w-24 h-24 object-cover rounded-md flex-shrink-0"
       />
