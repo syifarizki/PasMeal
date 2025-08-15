@@ -11,4 +11,14 @@ export const Kios = {
       return [];
     }
   },
+
+  getHomepage: async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/kios/homepage`);
+      return res.data || [];
+    } catch (err) {
+      console.error("Gagal ambil kios homepage:", err);
+      return [];
+    }
+  },
 };

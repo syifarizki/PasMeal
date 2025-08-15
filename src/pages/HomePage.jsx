@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiChevronRight } from "react-icons/fi";
 import Header from "../components/Header/Header";
@@ -7,29 +7,36 @@ import SearchBar from "../components/SearchBar";
 import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
 import Cart from "../components/Cart";
-
-const traditionalMenus = new Array(8).fill({
-  name: "Jajanan Tradisional",
-  description: "Berbagai macam jajanan dan gorengan",
-  image: "/images/asd.jpeg",
-});
+import { Kios } from "../services/Kios";
 
 export default function HomePage({ cart, setCart, showCart, setShowCart }) {
   const [search, setSearch] = useState("");
+  const [kiosList, setKiosList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Hitung total item di cart
   const totalCartItems = Object.values(cart).reduce(
     (acc, item) => acc + item.qty,
     0
   );
 
+  useEffect(() => {
+    const fetchKios = async () => {
+      const data = await Kios.getHomepage();
+      setKiosList(data);
+      setLoading(false);
+    };
+    fetchKios();
+  }, []);
+
+  const filteredKios = kiosList.filter((kios) =>
+    kios.nama_kios?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="bg-gray-100 font-sans overflow-x-hidden">
-      {/* Header */}
       <Header />
 
-      {/* Cart Popup */}
       {showCart && (
         <Cart
           cart={cart}
@@ -58,8 +65,8 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
         {/* New Menus Slider */}
         <NewMenuSlider />
 
-        {/* Kios */}
-        <div className="flex-1">
+        {/* Kios Section */}
+        <div className="flex-1 mt-6">
           <div className="flex items-center mb-4">
             <h3 className="hidden md:block font-extrabold text-primary text-2xl lg:text-3xl">
               Yuk, Lihat Kios!
@@ -74,14 +81,25 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {traditionalMenus.map((menu, index) => (
-              <KiosCard
-                key={index}
-                name={menu.name}
-                description={menu.description}
-                image={menu.image}
-              />
-            ))}
+            {loading ? (
+              <p className="text-gray-500 col-span-full text-center">
+                Loading kios...
+              </p>
+            ) : filteredKios.length > 0 ? (
+              filteredKios.map((kios) => (
+                <KiosCard
+                  key={kios.id || kios._id}
+                  kiosId={kios.id || kios._id}
+                  name={kios.nama_kios}
+                  description={kios.deskripsi}
+                  gambar_kios={kios.gambar_kios} 
+                />
+              ))
+            ) : (
+              <p className="text-gray-500 col-span-full text-center">
+                Tidak ada kios ditemukan
+              </p>
+            )}
           </div>
         </div>
       </div>
