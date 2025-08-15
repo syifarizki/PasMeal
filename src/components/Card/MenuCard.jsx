@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import QuantityControl from "../QuantityControl"; // pastikan path sesuai
+import QuantityControl from "../QuantityControl";
 
 export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
   const navigate = useNavigate();
@@ -10,16 +10,12 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
   };
 
   const handleSetQty = (newQty) => {
-    if (newQty > qty) {
-      addToCart(item.id);
-    } else if (newQty < qty) {
-      decreaseQty(item.id);
-    }
+    if (newQty > qty) addToCart(item.id);
+    else if (newQty < qty) decreaseQty(item.id);
   };
 
   return (
     <div className="bg-white rounded-md shadow overflow-hidden flex flex-col hover:shadow-lg transition">
-      {/* Bagian Gambar + Nama + Harga */}
       <div onClick={goToDetail} className="cursor-pointer">
         <img
           src={item.image}
@@ -34,7 +30,6 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
         </div>
       </div>
 
-      {/* Bagian Kontrol Keranjang */}
       <div className="p-3 pt-0">
         {qty <= 0 ? (
           <button

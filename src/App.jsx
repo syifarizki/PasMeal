@@ -7,7 +7,6 @@ import MenuPage from "./pages/MenuPage.jsx";
 import DetailMenuPage from "./pages/DetailMenuPage.jsx";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage.jsx";
 
-
 const menuItemsData = [
   {
     id: 1,
@@ -75,7 +74,7 @@ function App() {
           />
 
           <Route
-            path="MenuPage"
+            path="MenuPage/:kiosId"
             element={
               <MenuPage
                 cart={cart}
