@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function KiosCard({
   kiosId,
-  image,
+  gambar_kios, // pakai field dari backend
   name,
   description,
   showButton = true,
@@ -14,10 +14,10 @@ export default function KiosCard({
     navigate(`/MenuPage/${kiosId}`);
   };
 
-  // Cache-busting & fallback default
+  // Cache-busting supaya gambar selalu update
   const imgSrc =
-    image && image !== ""
-      ? `${import.meta.env.VITE_API_URL}/uploads/${image}?t=${Date.now()}`
+    gambar_kios && gambar_kios !== ""
+      ? `${import.meta.env.VITE_API_URL}/uploads/${gambar_kios}?t=${Date.now()}`
       : "/images/menudefault.jpg";
 
   return (
@@ -26,7 +26,7 @@ export default function KiosCard({
         src={imgSrc}
         alt={name}
         onError={(e) => {
-          e.target.src = "/images/menudefault.jpg";
+          e.target.src = "/images/menudefault.jpg"; // fallback default
         }}
         className="w-24 h-24 object-cover rounded-md flex-shrink-0"
       />
