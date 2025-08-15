@@ -1,35 +1,59 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { ImSpoonKnife } from "react-icons/im";
+import { Menu } from "../services/Menu";
 
 export default function NewMenuSlider() {
-  const newMenus = [
-    { name: "Risol", price: "Rp. 2.000", image: "/images/asd.jpeg" },
-    { name: "Nasgor Kari", price: "Rp. 15.000", image: "/images/asd.jpeg" },
-    { name: "Es Teh Susu", price: "Rp. 5.000", image: "/images/asd.jpeg" },
-    { name: "Nasgor Kari", price: "Rp. 15.000", image: "/images/asd.jpeg" },
-    { name: "Es Teh Susu", price: "Rp. 5.000", image: "/images/asd.jpeg" },
-  ];
+  const [newMenus, setNewMenus] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const sliderSettings = {
-  dots: false,
-  arrows: false,
-  infinite: true,
-  speed: 500,
-  slidesToShow: 4,
-  slidesToScroll: 1,
-  autoplay: true,
-  autoplaySpeed: 2500,
-  pauseOnHover: true,
-  responsive: [
-    { breakpoint: 1024, settings: { slidesToShow: 4 } },
-    { breakpoint: 768, settings: { slidesToShow: 3 } }, 
-    { breakpoint: 480, settings: { slidesToShow: 2 } }, 
-  ],
-};
+  useEffect(() => {
+    const fetchNewMenus = async () => {
+      try {
+        const data = await Menu.getNewMenus();
+        setNewMenus(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Gagal fetch menu baru:", err);
+        setNewMenus([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNewMenus();
+  }, []);
 
+  const sliderSettings = {
+    dots: false,
+    arrows: false,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 4,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 2500,
+    pauseOnHover: true,
+    responsive: [
+      { breakpoint: 1024, settings: { slidesToShow: 4 } },
+      { breakpoint: 768, settings: { slidesToShow: 3 } },
+      { breakpoint: 480, settings: { slidesToShow: 2 } },
+    ],
+  };
+
+  if (loading) {
+    return (
+      <div className="text-white text-center py-10">Loading menu baru...</div>
+    );
+  }
+
+  if (!newMenus.length) {
+    return (
+      <div className="text-white text-center py-10">
+        Menu baru tidak tersedia
+      </div>
+    );
+  }
 
   return (
     <div
@@ -51,13 +75,22 @@ const sliderSettings = {
           <div key={index} className="px-2">
             <div className="bg-white rounded-lg shadow p-3 text-center">
               <img
-                src={menu.image}
-                alt={menu.name}
+                src={
+                  menu.foto_menu
+                    ? `${import.meta.env.VITE_API_URL}/uploads/${
+                        menu.foto_menu
+                      }`
+                    : "/images/menudefault.jpg"
+                }
+                alt={menu.nama_menu}
+                onError={(e) => {
+                  e.target.src = "/images/menudefault.jpg";
+                }}
                 className="w-full h-24 object-cover rounded-md"
               />
-              <div className="mt-2 text-xl font-bold">{menu.name}</div>
+              <div className="mt-2 text-xl font-bold">{menu.nama_menu}</div>
               <div className="text-xl text-primary">
-                {menu.price}
+                Rp. {Number(menu.harga).toLocaleString("id-ID")}
               </div>
             </div>
           </div>
