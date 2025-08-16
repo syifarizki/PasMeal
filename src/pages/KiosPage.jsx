@@ -30,7 +30,7 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
   );
 
   return (
-    <div className="bg-gray-100 font-sans overflow-x-hidden min-h-screen">
+    <div>
       <HeaderKios />
       {showCart && (
         <Cart
