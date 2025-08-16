@@ -90,10 +90,13 @@ function App() {
               <DetailMenuPage
                 cart={cart}
                 setCart={setCart}
+                showCart={showCart}
+                setShowCart={setShowCart}
                 menuItems={menuItemsData}
               />
             }
           />
+
           <Route
             path="OrderConfirmationPage"
             element={<OrderConfirmationPage cart={cart} setCart={setCart} />}

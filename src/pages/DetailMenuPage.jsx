@@ -4,39 +4,72 @@ import { FiArrowLeft } from "react-icons/fi";
 import CartButton from "../components/CartButton";
 import Cart from "../components/Cart";
 import { Menu } from "../services/Menu";
+import { Keranjang } from "../services/Keranjang";
+import QuantityControl from "../components/QuantityControl";
 
 export default function DetailMenuPage({ cart, setCart }) {
   const { id } = useParams();
   const [menu, setMenu] = useState(null);
   const [showCart, setShowCart] = useState(false);
+  const [qty, setQtyState] = useState(0); // state lokal untuk qty
 
-  const totalCartItems = Object.values(cart).reduce((a, b) => a + b.qty, 0);
+  // guestId
+  let guestId = localStorage.getItem("guestId");
+  if (!guestId) {
+    guestId = `guest-${Date.now()}`;
+    localStorage.setItem("guestId", guestId);
+  }
 
+  const totalCartItems = Object.values(cart).reduce(
+    (acc, item) => acc + item.qty,
+    0
+  );
+
+  // Ambil detail menu
   useEffect(() => {
     const fetchMenu = async () => {
-      const data = await Menu.getMenuById(id);
-      if (data) setMenu(data);
+      try {
+        const data = await Menu.getMenuById(id);
+        if (data) setMenu(data);
+      } catch (err) {
+        console.error("Gagal ambil detail menu:", err);
+      }
     };
     fetchMenu();
   }, [id]);
 
-  const addToCart = (menuId) => {
+  // Sinkron qty dengan cart setiap kali cart berubah
+  useEffect(() => {
+    const cartItem = cart[id];
+    setQtyState(cartItem ? cartItem.qty : 0);
+  }, [cart, id]);
+
+  // Fungsi update qty
+  const setQty = async (newQty) => {
     if (!menu) return;
-    setCart((prev) => {
-      const existing = prev[menuId];
-      if (existing)
-        return { ...prev, [menuId]: { ...existing, qty: existing.qty + 1 } };
-      return {
+
+    if (!cart[id] && newQty > 0) {
+      const res = await Keranjang.addItem(guestId, menu.id, newQty);
+      setCart((prev) => ({
         ...prev,
-        [menuId]: {
-          id: menu.id,
-          name: menu.name,
-          price: menu.price,
-          image: menu.image,
-          qty: 1,
-        },
-      };
-    });
+        [id]: { ...menu, qty: newQty, cartId: res.id },
+      }));
+    } else if (cart[id]) {
+      if (newQty <= 0) {
+        await Keranjang.removeItem(guestId, cart[id].cartId);
+        setCart((prev) => {
+          const tmp = { ...prev };
+          delete tmp[id];
+          return tmp;
+        });
+      } else {
+        await Keranjang.updateItem(guestId, cart[id].cartId, newQty);
+        setCart((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], qty: newQty },
+        }));
+      }
+    }
   };
 
   if (!menu) return <p className="p-5">Loading...</p>;
@@ -48,6 +81,7 @@ export default function DetailMenuPage({ cart, setCart }) {
           cart={cart}
           setCart={setCart}
           onClose={() => setShowCart(false)}
+          guestId={guestId}
         />
       )}
 
@@ -89,12 +123,18 @@ export default function DetailMenuPage({ cart, setCart }) {
             <p className="text-primary font-medium text-lg md:text-xl">
               Rp {menu.price?.toLocaleString("id-ID")}
             </p>
-            <button
-              onClick={() => addToCart(menu.id)}
-              className="bg-primary text-white font-semibold px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors duration-200"
-            >
-              Tambah Keranjang
-            </button>
+            <div>
+              {qty === 0 ? (
+                <button
+                  onClick={() => setQty(1)}
+                  className="bg-primary text-white font-semibold px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors duration-200"
+                >
+                  Tambah Keranjang
+                </button>
+              ) : (
+                <QuantityControl qty={qty} setQty={setQty} />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -138,17 +178,20 @@ export default function DetailMenuPage({ cart, setCart }) {
               <p className="text-primary font-medium text-xl">
                 Rp {menu.price?.toLocaleString("id-ID")}
               </p>
-              <p className="text-black font-medium text-base mt-2">
-                Estimasi: {menu.estimasiMenit} menit
-              </p>
             </div>
 
-            <button
-              onClick={() => addToCart(menu.id)}
-              className="bg-primary text-lg text-white font-semibold px-4 py-2 rounded-lg w-fit"
-            >
-              Tambah Keranjang
-            </button>
+            <div>
+              {qty === 0 ? (
+                <button
+                  onClick={() => setQty(1)}
+                  className="bg-primary text-lg text-white font-semibold px-4 py-2 rounded-lg w-fit cursor-pointer hover:bg-orange-600 transition-colors duration-200"
+                >
+                  Tambah Keranjang
+                </button>
+              ) : (
+                <QuantityControl qty={qty} setQty={setQty} />
+              )}
+            </div>
           </div>
         </div>
       </div>
