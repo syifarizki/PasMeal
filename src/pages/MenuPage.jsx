@@ -1,3 +1,4 @@
+// src/pages/MenuPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import HeaderMenu from "../components/Header/HeaderMenu";
@@ -39,14 +40,16 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     (async () => {
       try {
         const data = await Kios.getMenusByKios(kiosId);
+
         const mapped = data.map((item) => ({
           id: item.id,
           name: item.nama_menu,
           price: item.harga,
-          image: item.gambar_menu
-            ? `${import.meta.env.VITE_API_URL}/uploads/${item.gambar_menu}`
+          image: item.foto_menu
+            ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
             : "/images/menudefault.jpg",
         }));
+
         setMenuItems(mapped);
       } catch (err) {
         console.error("Gagal ambil menu kios:", err);
@@ -69,8 +72,8 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
             id: item.menu_id,
             name: item.nama_menu,
             price: item.harga,
-            image: item.gambar_menu
-              ? `${import.meta.env.VITE_API_URL}/uploads/${item.gambar_menu}`
+            image: item.foto_menu
+              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
               : "/images/menudefault.jpg",
             qty: item.jumlah,
           };

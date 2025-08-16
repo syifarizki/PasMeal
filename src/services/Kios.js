@@ -35,7 +35,7 @@ export const Kios = {
   getById: async (kiosId) => {
     try {
       const res = await axios.get(`${API_URL}/api/kios/${kiosId}`);
-      return res.data.data || null; 
+      return res.data.data || null;
     } catch (err) {
       console.error("Gagal ambil kios by id:", err);
       return null;
