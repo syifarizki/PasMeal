@@ -88,8 +88,10 @@ export default function NewMenuSlider() {
                 }}
                 className="w-full h-24 object-cover rounded-md"
               />
-              <div className="mt-2 text-xl font-bold">{menu.nama_menu}</div>
-              <div className="text-xl text-primary">
+              <div className="mt-2 text-lg md:text-xl font-bold">
+                {menu.nama_menu}
+              </div>
+              <div className="text-lg md:text-xl  text-primary">
                 Rp. {Number(menu.harga).toLocaleString("id-ID")}
               </div>
             </div>

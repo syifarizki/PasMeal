@@ -1,25 +1,79 @@
+// src/components/Cart.jsx
 import { FiX } from "react-icons/fi";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QuantityControl from "./QuantityControl";
 import PrimaryButton from "./PrimaryButton";
+import { Keranjang } from "../services/Keranjang";
 
-export default function Cart({ cart, setCart, onClose }) {
+export default function Cart({ guestId, cart, setCart, onClose }) {
   const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
 
-  // Load cart dari localStorage saat pertama kali
+  // Load cart dari API saat pertama kali
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
-  }, [setCart]);
+    const fetchCart = async () => {
+      if (!guestId) return;
+      const items = await Keranjang.getKeranjang(guestId);
 
-  // Simpan cart ke localStorage setiap ada perubahan
-  useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
+      const cartObj = {};
+      items.forEach((item) => {
+        const menuId = item.menu?.id ?? item.menu_id ?? item.id;
+        const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
+        const price = item.menu?.harga ?? item.harga ?? 0;
+        const image =
+          item.menu?.foto_url ??
+          (item.foto_menu
+            ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
+            : "/images/menudefault.jpg");
+
+        cartObj[menuId] = {
+          cartId: item.id,
+          id: menuId,
+          name,
+          price,
+          image,
+          qty: item.jumlah ?? 0,
+        };
+      });
+
+      setCart(cartObj);
+    };
+
+    fetchCart();
+  }, [guestId, setCart]);
+
+  // Update qty ke API + update state
+  const updateCartQty = async (menuId, newQty) => {
+    const cartItemId = cart[menuId]?.cartId;
+    if (!cartItemId) return;
+
+    if (newQty <= 0) {
+      await Keranjang.removeItem(guestId, cartItemId);
+      setCart((prev) => {
+        const newCart = { ...prev };
+        delete newCart[menuId];
+        return newCart;
+      });
+    } else {
+      const updated = await Keranjang.updateItem(guestId, cartItemId, newQty);
+      if (updated) {
+        setCart((prev) => ({
+          ...prev,
+          [menuId]: { ...prev[menuId], qty: updated.jumlah },
+        }));
+      }
+    }
+  };
+
+  const total = Object.values(cart).reduce(
+    (acc, item) => acc + (item.price ?? 0) * (item.qty ?? 0),
+    0
+  );
+
+  const handleCheckout = () => {
+    navigate("/OrderConfirmationPage");
+  };
 
   // Cek ukuran layar
   useEffect(() => {
@@ -29,43 +83,16 @@ export default function Cart({ cart, setCart, onClose }) {
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
 
-  const total = Object.values(cart).reduce(
-    (acc, item) => acc + item.price * item.qty,
-    0
-  );
-
-  const handleCheckout = () => {
-    navigate("/OrderConfirmationPage");
-  };
-
-  // 🔹 Fungsi untuk update qty di cart
-  const updateCartQty = (id, newQty) => {
-    setCart((prev) => {
-      if (newQty <= 0) {
-        const newCart = { ...prev };
-        delete newCart[id];
-        return newCart;
-      }
-      return {
-        ...prev,
-        [id]: { ...prev[id], qty: newQty },
-      };
-    });
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex lg:justify-end">
-      {/* Overlay */}
       <div className="flex-1 bg-black/50" onClick={onClose}></div>
 
-      {/* Cart Container */}
       <div
-        className={`bg-white shadow-lg flex flex-col max-h-screen
-          ${
-            isDesktop
-              ? "lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:rounded-l-2xl lg:w-[400px] animate-slideInRight"
-              : "w-full rounded-t-2xl fixed bottom-0 animate-slideInUp"
-          }`}
+        className={`bg-white shadow-lg flex flex-col max-h-screen ${
+          isDesktop
+            ? "lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:rounded-l-2xl lg:w-[400px] animate-slideInRight"
+            : "w-full rounded-t-2xl fixed bottom-0 animate-slideInUp"
+        }`}
       >
         {/* Header */}
         <div className="relative flex items-center justify-center px-4 py-4 border-b">
@@ -84,8 +111,8 @@ export default function Cart({ cart, setCart, onClose }) {
             <p className="text-gray-500">Keranjang kosong</p>
           ) : (
             <ul className="space-y-4">
-              {Object.entries(cart).map(([id, item]) => (
-                <li key={id} className="flex items-center gap-3">
+              {Object.entries(cart).map(([menuId, item]) => (
+                <li key={menuId} className="flex items-center gap-3">
                   <img
                     src={item.image}
                     alt={item.name}
@@ -94,14 +121,13 @@ export default function Cart({ cart, setCart, onClose }) {
                   <div className="flex-1">
                     <p className="font-semibold">{item.name}</p>
                     <p className="text-orange-500 text-sm">
-                      Rp {item.price.toLocaleString("id-ID")}
+                      Rp {(item.price ?? 0).toLocaleString("id-ID")}
                     </p>
                   </div>
 
-                  {/* QuantityControl */}
                   <QuantityControl
                     qty={item.qty}
-                    setQty={(newQty) => updateCartQty(id, newQty)}
+                    setQty={(newQty) => updateCartQty(menuId, newQty)}
                   />
                 </li>
               ))}
@@ -110,7 +136,6 @@ export default function Cart({ cart, setCart, onClose }) {
         </div>
 
         {/* Footer */}
-       
         <div className="p-4 shadow-2xl shadow-black">
           <div className="flex justify-between font-semibold mb-3">
             <span>Total Harga</span>
@@ -122,7 +147,7 @@ export default function Cart({ cart, setCart, onClose }) {
           <PrimaryButton
             text="Lanjut"
             onClick={handleCheckout}
-            disabled={Object.keys(cart).length === 0} 
+            disabled={Object.keys(cart).length === 0}
             className="w-full py-0"
           />
         </div>
@@ -139,12 +164,8 @@ export default function Cart({ cart, setCart, onClose }) {
             from { transform: translateX(100%); }
             to { transform: translateX(0); }
           }
-          .animate-slideInUp {
-            animation: slideInUp 0.3s ease-out forwards;
-          }
-          .animate-slideInRight {
-            animation: slideInRight 0.3s ease-out forwards;
-          }
+          .animate-slideInUp { animation: slideInUp 0.3s ease-out forwards; }
+          .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
         `}
       </style>
     </div>

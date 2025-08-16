@@ -40,7 +40,6 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     (async () => {
       try {
         const data = await Kios.getMenusByKios(kiosId);
-
         const mapped = data.map((item) => ({
           id: item.id,
           name: item.nama_menu,
@@ -49,7 +48,6 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
             ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
             : "/images/menudefault.jpg",
         }));
-
         setMenuItems(mapped);
       } catch (err) {
         console.error("Gagal ambil menu kios:", err);
@@ -64,21 +62,30 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     (async () => {
       try {
         const keranjangData = await Keranjang.getKeranjang(guestId);
+
         const mappedCart = (
           Array.isArray(keranjangData) ? keranjangData : []
         ).reduce((acc, item) => {
-          acc[item.menu_id] = {
-            cartId: item.id,
-            id: item.menu_id,
-            name: item.nama_menu,
-            price: item.harga,
-            image: item.foto_menu
+          const menuId = item.menu?.id ?? item.menu_id ?? item.id;
+          const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
+          const price = item.menu?.harga ?? item.harga ?? 0;
+          const image =
+            item.menu?.foto_url ??
+            (item.foto_menu
               ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-              : "/images/menudefault.jpg",
-            qty: item.jumlah,
+              : "/images/menudefault.jpg");
+
+          acc[menuId] = {
+            cartId: item.id,
+            id: menuId,
+            name,
+            price,
+            image,
+            qty: item.jumlah ?? 0,
           };
           return acc;
         }, {});
+
         setCart(mappedCart);
       } catch (err) {
         console.error("Gagal ambil keranjang:", err);
@@ -158,6 +165,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     <div className="bg-gray-50 min-h-screen relative">
       {showCart && (
         <Cart
+          guestId={guestId}
           cart={cart}
           setCart={setCart}
           onClose={() => setShowCart(false)}
