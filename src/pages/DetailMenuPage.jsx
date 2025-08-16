@@ -1,28 +1,31 @@
-// DetailMenuPage.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
 import CartButton from "../components/CartButton";
 import Cart from "../components/Cart";
+import { Menu } from "../services/Menu";
 
-export default function DetailMenuPage({ cart, setCart, menuItems }) {
+export default function DetailMenuPage({ cart, setCart }) {
   const { id } = useParams();
-  const menu = menuItems.find((item) => item.id === parseInt(id)) || {};
+  const [menu, setMenu] = useState(null);
+  const [showCart, setShowCart] = useState(false);
 
-  const [showCart, setShowCart] = React.useState(false);
-
-  // hitung total qty semua item
   const totalCartItems = Object.values(cart).reduce((a, b) => a + b.qty, 0);
 
+  useEffect(() => {
+    const fetchMenu = async () => {
+      const data = await Menu.getMenuById(id);
+      if (data) setMenu(data);
+    };
+    fetchMenu();
+  }, [id]);
+
   const addToCart = (menuId) => {
+    if (!menu) return;
     setCart((prev) => {
       const existing = prev[menuId];
-      if (existing) {
-        return {
-          ...prev,
-          [menuId]: { ...existing, qty: existing.qty + 1 },
-        };
-      }
+      if (existing)
+        return { ...prev, [menuId]: { ...existing, qty: existing.qty + 1 } };
       return {
         ...prev,
         [menuId]: {
@@ -35,6 +38,8 @@ export default function DetailMenuPage({ cart, setCart, menuItems }) {
       };
     });
   };
+
+  if (!menu) return <p className="p-5">Loading...</p>;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -54,16 +59,12 @@ export default function DetailMenuPage({ cart, setCart, menuItems }) {
             alt={menu.name}
             className="w-full h-full object-cover"
           />
-
-          {/* Back button */}
           <button
             onClick={() => window.history.back()}
             className="absolute top-8 left-5 flex items-center gap-1 text-white text-lg font-medium rounded-full p-2 bg-black/20"
           >
             <FiArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
           </button>
-
-          {/* Cart button */}
           <div className="absolute top-8 right-8">
             <CartButton
               totalCartItems={totalCartItems}
@@ -76,7 +77,6 @@ export default function DetailMenuPage({ cart, setCart, menuItems }) {
           </div>
         </div>
 
-        {/* Detail */}
         <div className="p-5 md:p-8 bg-white">
           <h2 className="font-extrabold text-xl md:text-3xl mb-2">
             {menu.name}
@@ -85,7 +85,6 @@ export default function DetailMenuPage({ cart, setCart, menuItems }) {
             {menu.description}
           </p>
 
-          {/* Harga & Tombol */}
           <div className="flex items-center justify-between">
             <p className="text-primary font-medium text-lg md:text-xl">
               Rp {menu.price?.toLocaleString("id-ID")}
@@ -138,6 +137,9 @@ export default function DetailMenuPage({ cart, setCart, menuItems }) {
               </p>
               <p className="text-primary font-medium text-xl">
                 Rp {menu.price?.toLocaleString("id-ID")}
+              </p>
+              <p className="text-black font-medium text-base mt-2">
+                Estimasi: {menu.estimasiMenit} menit
               </p>
             </div>
 
