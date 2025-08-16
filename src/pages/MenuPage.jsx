@@ -1,3 +1,4 @@
+// src/pages/MenuPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import HeaderMenu from "../components/Header/HeaderMenu";
@@ -65,7 +66,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         const mappedCart = (
           Array.isArray(keranjangData) ? keranjangData : []
         ).reduce((acc, item) => {
-          const menuId = item.menu?.id ?? item.menu_id ?? item.id;
+          const menuId = item.menu_id ?? item.menu?.id;
           const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
           const price = item.menu?.harga ?? item.harga ?? 0;
           const image =
@@ -75,7 +76,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
               : "/images/menudefault.jpg");
 
           acc[menuId] = {
-            cartId: item.id,
+            cartId: item.id, // id keranjang
             id: menuId,
             name,
             price,

@@ -1,3 +1,4 @@
+// src/services/Keranjang.js
 import axios from "axios";
 import { API_URL } from "./Api";
 
@@ -8,7 +9,7 @@ export const Keranjang = {
       const res = await axios.get(`${API_URL}/api/keranjang`, {
         headers: { "x-buyer-id": guestId },
       });
-      return res.data.items || [];
+      return res.data.items || []; // backend return { items: [...] }
     } catch (err) {
       console.error(
         "Gagal ambil data keranjang:",
@@ -27,7 +28,7 @@ export const Keranjang = {
         { menu_id, jumlah, catatan },
         { headers: { "x-buyer-id": guestId } }
       );
-      return res.data.item;
+      return res.data.item; // backend return { item: {...} }
     } catch (err) {
       console.error(
         "Gagal tambah item ke keranjang:",

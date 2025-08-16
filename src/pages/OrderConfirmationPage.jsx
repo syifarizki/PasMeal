@@ -1,12 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
 import { BiStore } from "react-icons/bi";
 import OrderForm from "../components/OrderForm";
 import QuantityControl from "../components/QuantityControl";
+import { Keranjang } from "../services/Keranjang";
+import { Kios } from "../services/Kios";
 
-export default function OrderConfirmation({ cart, setCart }) {
+export default function OrderConfirmation() {
   const [deliveryType, setDeliveryType] = useState("pesanAntar");
+  const [cart, setCart] = useState({});
+  const [kiosName, setKiosName] = useState("");
+  const [kiosId, setKiosId] = useState(null); // ✅ simpan kiosId
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const formatRupiah = (value) => value.toLocaleString("id-ID");
@@ -18,17 +25,77 @@ export default function OrderConfirmation({ cart, setCart }) {
     0
   );
 
-  const updateQty = (id, newQty) => {
-    setCart((prev) => {
-      const updated = { ...prev };
-      if (newQty <= 0) {
-        delete updated[id];
-      } else {
-        updated[id] = { ...updated[id], qty: newQty };
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        setLoading(true);
+        const guestId = localStorage.getItem("guestId");
+        if (!guestId) throw new Error("Guest ID tidak ditemukan");
+
+        const res = await Keranjang.getKeranjang(guestId);
+
+        if (res?.length > 0) {
+          const mapped = {};
+          res.forEach((item) => {
+            mapped[item.id] = {
+              id: item.id,
+              name: item.nama_menu,
+              price: item.harga,
+              qty: item.jumlah,
+              image:
+                item.menu?.foto_url ??
+                (item.foto_menu
+                  ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
+                  : "/images/menudefault.jpg"),
+              menuId: item.menu_id,
+              subtotal: item.subtotal,
+              kiosId: item.kios_id,
+            };
+          });
+          setCart(mapped);
+
+          const firstItem = Object.values(mapped)[0];
+          if (firstItem) {
+            const kiosRes = await Kios.getById(firstItem.kiosId);
+            setKiosId(firstItem.kiosId); // ✅ simpan kiosId
+            setKiosName(kiosRes?.nama_kios || "Nama Kios");
+          } else {
+            setKiosName("Nama Kios");
+          }
+        } else {
+          setCart({});
+          setKiosName("Nama Kios");
+        }
+      } catch (err) {
+        console.error("Gagal ambil keranjang:", err);
+        setError("Gagal memuat keranjang");
+      } finally {
+        setLoading(false);
       }
-      return updated;
-    });
+    };
+
+    fetchCart();
+  }, []);
+
+  const updateQty = async (id, newQty) => {
+    try {
+      const guestId = localStorage.getItem("guestId");
+      await Keranjang.updateItem(guestId, id, newQty);
+
+      setCart((prev) => {
+        const updated = { ...prev };
+        if (newQty <= 0) delete updated[id];
+        else updated[id] = { ...updated[id], qty: newQty };
+        return updated;
+      });
+    } catch (err) {
+      console.error("Gagal update keranjang:", err);
+    }
   };
+
+  if (loading)
+    return <div className="p-6 text-center">Memuat keranjang...</div>;
+  if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
 
   return (
     <div className="bg-white font-sans">
@@ -82,12 +149,13 @@ export default function OrderConfirmation({ cart, setCart }) {
             <div className="flex justify-between items-center mb-3 text-gray-700">
               <div className="flex items-center gap-2 font-medium">
                 <BiStore className="w-6 h-6" />
-                <span>DAPUR UJE</span>
+                <span>{kiosName}</span>
               </div>
               <button
                 className="text-primary text-base cursor-pointer"
                 type="button"
-                onClick={() => navigate("/MenuPage")}
+                disabled={!kiosId} // ✅ cegah error kalau kiosId null
+                onClick={() => navigate(`/MenuPage/${kiosId}`)}
               >
                 Tambah Menu
               </button>
@@ -132,7 +200,12 @@ export default function OrderConfirmation({ cart, setCart }) {
 
         {/* Order Form */}
         <div className="lg:w-1/2">
-          <OrderForm deliveryType={deliveryType} qty={totalQty} />
+          <OrderForm
+            deliveryType={deliveryType}
+            qty={totalQty}
+            items={items}
+            totalPrice={totalPrice}
+          />
         </div>
       </div>
     </div>
