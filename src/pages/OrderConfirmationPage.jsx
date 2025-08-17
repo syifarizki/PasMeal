@@ -11,7 +11,7 @@ export default function OrderConfirmation() {
   const [deliveryType, setDeliveryType] = useState("pesanAntar");
   const [cart, setCart] = useState({});
   const [kiosName, setKiosName] = useState("");
-  const [kiosId, setKiosId] = useState(null); // ✅ simpan kiosId
+  const [kiosId, setKiosId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function OrderConfirmation() {
     const fetchCart = async () => {
       try {
         setLoading(true);
-        const guestId = localStorage.getItem("guestId");
+        const guestId = localStorage.getItem("guestId"); 
         if (!guestId) throw new Error("Guest ID tidak ditemukan");
 
         const res = await Keranjang.getKeranjang(guestId);
@@ -57,7 +57,7 @@ export default function OrderConfirmation() {
           const firstItem = Object.values(mapped)[0];
           if (firstItem) {
             const kiosRes = await Kios.getById(firstItem.kiosId);
-            setKiosId(firstItem.kiosId); // ✅ simpan kiosId
+            setKiosId(firstItem.kiosId);
             setKiosName(kiosRes?.nama_kios || "Nama Kios");
           } else {
             setKiosName("Nama Kios");
@@ -154,7 +154,7 @@ export default function OrderConfirmation() {
               <button
                 className="text-primary text-base cursor-pointer"
                 type="button"
-                disabled={!kiosId} // ✅ cegah error kalau kiosId null
+                disabled={!kiosId}
                 onClick={() => navigate(`/MenuPage/${kiosId}`)}
               >
                 Tambah Menu

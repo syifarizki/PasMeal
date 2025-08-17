@@ -1,9 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import InputText from "./Input/InputText";
 import InputPhone from "./Input/InputPhone";
 import TextArea from "./Input/TextArea";
 import PrimaryButton from "./PrimaryButton";
 import { Pesanan } from "../services/Pesanan";
+import { Payment } from "../services/Payment";
+import Notification from "../components/Notification";
+
+import successIcon from "/images/berhasil.png";
+import errorIcon from "/images/gagal.png";
+import pendingIcon from "/images/pending.png";
 
 export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
   const [nama, setNama] = useState("");
@@ -11,121 +17,187 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
   const [catatan, setCatatan] = useState("");
   const [diantarKe, setDiantarKe] = useState("");
   const [loading, setLoading] = useState(false);
+  const [snapReady, setSnapReady] = useState(false);
+  const [notif, setNotif] = useState({
+    show: false,
+    title: "",
+    message: "",
+    buttonText: "Tutup",
+    iconImage: null,
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!isFormValid) return;
-
-    // simpan / ambil guest_id dari localStorage
-    let guestId = localStorage.getItem("guest_id");
-    if (!guestId) {
-      guestId = "guest-" + Date.now();
-      localStorage.setItem("guest_id", guestId);
-    }
-
-    // payload sesuai BE
-    const payload = {
-      guest_id: guestId,
-      tipe_pengantaran: deliveryType, // pastikan value: "ditempat" | "ambilSendiri" | "pesanAntar"
-      nama_pemesan: nama,
-      no_hp: noHp,
-      catatan,
-      diantar_ke: deliveryType === "pesanAntar" ? diantarKe : null,
-      items: items.map((item) => ({
-        menu_id: item.id,
-        name: item.name,
-        qty: item.qty,
-        price: item.price,
-      })),
-      total_harga: totalPrice,
-    };
-
-    try {
-      setLoading(true);
-      const res = await Pesanan.buatPesanan(payload);
-      console.log("Pesanan berhasil dibuat:", res);
-
-      // 🔹 Jika backend balikin snapToken → jalankan Midtrans Snap
-      if (res?.snapToken && window.snap) {
-        window.snap.pay(res.snapToken, {
-          onSuccess: (result) => {
-            console.log("Pembayaran sukses:", result);
-            alert("Pembayaran berhasil!");
-          },
-          onPending: (result) => {
-            console.log("Menunggu pembayaran:", result);
-            alert("Menunggu pembayaran...");
-          },
-          onError: (result) => {
-            console.error("Pembayaran gagal:", result);
-            alert("Pembayaran gagal!");
-          },
-          onClose: () => {
-            console.log("Popup pembayaran ditutup");
-            alert("Kamu menutup popup sebelum bayar.");
-          },
-        });
-      } else {
-        alert("Pesanan berhasil dibuat! Order ID: " + res?.pesanan?.id);
-      }
-    } catch (error) {
-      console.error("Gagal buat pesanan:", error);
-      alert("Gagal membuat pesanan. Coba lagi!");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (window.snap) return setSnapReady(true);
+    const script = document.createElement("script");
+    script.src = import.meta.env.VITE_MIDTRANS_SNAP_URL;
+    script.setAttribute(
+      "data-client-key",
+      import.meta.env.VITE_MIDTRANS_CLIENT_KEY
+    );
+    script.async = true;
+    script.onload = () => setSnapReady(true);
+    document.body.appendChild(script);
+  }, []);
 
   const isFormValid =
     qty > 0 &&
     nama.trim() &&
     noHp.trim() &&
-    catatan.trim() &&
     (deliveryType !== "pesanAntar" || diantarKe.trim());
 
+  const showNotification = (
+    title,
+    message,
+    iconImage,
+    buttonText = "Tutup"
+  ) => {
+    setNotif({ show: true, title, message, iconImage, buttonText });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isFormValid)
+      return showNotification(
+        "Form Belum Lengkap",
+        "Lengkapi semua data sebelum lanjut.",
+        errorIcon
+      );
+    if (!items?.length)
+      return showNotification(
+        "Keranjang Kosong",
+        "Tambahkan menu sebelum melanjutkan.",
+        errorIcon
+      );
+
+    let guestId = localStorage.getItem("guestId");
+    if (!guestId) {
+      guestId = "guest-" + Date.now();
+      localStorage.setItem("guestId", guestId);
+    }
+
+    const payloadPesanan = {
+      guest_id: guestId,
+      tipe_pengantaran: deliveryType,
+      nama_pemesan: nama,
+      no_hp: noHp,
+      catatan: catatan || "-",
+      diantar_ke: deliveryType === "pesanAntar" ? diantarKe : null,
+      items: items.map((i) => ({ menu_id: i.id, qty: i.qty, harga: i.price })),
+      total_harga: totalPrice,
+    };
+
+    try {
+      setLoading(true);
+
+      // 1. Buat pesanan
+      const pesananRes = await Pesanan.buatPesanan(payloadPesanan);
+      const pesanan_id = pesananRes?.id;
+      if (!pesanan_id) throw new Error("Pesanan gagal dibuat");
+
+      // 2. Buat transaksi Midtrans
+      const transaksiRes = await Payment.createTransaction({
+        pesanan_id,
+        guest_id: guestId,
+        items: payloadPesanan.items.map((i) => ({
+          id: i.menu_id,
+          price: i.harga,
+          quantity: i.qty,
+          name: items.find((x) => x.id === i.menu_id)?.name || "Menu",
+        })),
+        total_harga: totalPrice,
+      });
+      if (!transaksiRes?.token) throw new Error("Token Snap tidak ditemukan");
+
+      // 3. Jalankan Snap
+      window.snap.pay(transaksiRes.token, {
+        onSuccess: async () => {
+          // Fetch ulang status pesanan dari backend
+          const updatedPesanan = await Payment.getPesananDetail(pesanan_id);
+          const statusText = updatedPesanan?.status || "dibayar";
+
+          showNotification(
+            "Yey!",
+            `Pembayaran berhasil, status pesanan: ${statusText}.`,
+            successIcon,
+            "Oke"
+          );
+        },
+        onPending: () => {
+          showNotification(
+            "Menunggu",
+            "Pembayaran menunggu konfirmasi.",
+            pendingIcon
+          );
+        },
+        onError: () => {
+          showNotification("Gagal", "Pembayaran gagal.", errorIcon);
+        },
+        onClose: () => {
+          showNotification(
+            "Dibatalkan",
+            "Kamu menutup popup sebelum bayar.",
+            errorIcon
+          );
+        },
+      });
+    } catch (err) {
+      console.error("Error Snap:", err);
+      showNotification(
+        "Error",
+        err.message || "Terjadi kesalahan, coba lagi.",
+        errorIcon
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="md:flex-1 flex flex-col gap-4">
-      <InputText
-        type="text"
-        label="Nama"
-        value={nama}
-        onChange={(e) => setNama(e.target.value)}
-        placeholder="Nama"
-      />
-
-      <InputPhone
-        label="Nomor WhatsApp"
-        value={noHp}
-        onChange={setNoHp}
-        placeholder="Nomor WhatsApp"
-      />
-
-      <TextArea
-        label="Catatan Tambahan"
-        value={catatan}
-        onChange={(e) => setCatatan(e.target.value)}
-        placeholder="Catatan Tambahan"
-        rows={2}
-      />
-
-      {deliveryType === "pesanAntar" && (
+    <>
+      <form onSubmit={handleSubmit} className="md:flex-1 flex flex-col gap-4">
         <InputText
-          type="text"
-          label="Diantar Ke?"
-          value={diantarKe}
-          onChange={(e) => setDiantarKe(e.target.value)}
-          placeholder="Diantar Ke?"
+          label="Nama"
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          placeholder="Nama"
         />
-      )}
-
-      <div className="mt-3">
+        <InputPhone
+          label="Nomor WhatsApp"
+          value={noHp}
+          onChange={setNoHp}
+          placeholder="Nomor WhatsApp"
+        />
+        <TextArea
+          label="Catatan Tambahan"
+          value={catatan}
+          onChange={(e) => setCatatan(e.target.value)}
+          placeholder="Catatan Tambahan"
+          rows={2}
+        />
+        {deliveryType === "pesanAntar" && (
+          <InputText
+            label="Alamat Pengantaran"
+            value={diantarKe}
+            onChange={(e) => setDiantarKe(e.target.value)}
+            placeholder="Masukkan alamat lengkap"
+          />
+        )}
         <PrimaryButton
           type="submit"
-          text={loading ? "Memproses..." : "Bayar"}
+          text={loading ? "Memproses..." : "Bayar Sekarang"}
           className="w-full py-2"
-          disabled={!isFormValid || loading}
+          disabled={!isFormValid || loading || !snapReady}
         />
-      </div>
-    </form>
+      </form>
+
+      <Notification
+        show={notif.show}
+        title={notif.title}
+        message={notif.message}
+        iconImage={notif.iconImage}
+        buttonText={notif.buttonText}
+        onClose={() => setNotif({ ...notif, show: false })}
+      />
+    </>
   );
 }

@@ -5,11 +5,10 @@ export const Pesanan = {
   buatPesanan: async (data) => {
     try {
       const res = await axios.post(`${API_URL}/api/pesanan`, data);
-      return res.data; 
+      return res.data?.pesanan || res.data;
     } catch (err) {
-      console.error("Gagal buat pesanan:", err.response?.data || err);
+      console.error("Gagal buat pesanan:", err.response?.data || err.message);
       throw err;
     }
   },
-
 };
