@@ -15,19 +15,20 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
     (acc, item) => acc + item.qty,
     0
   );
-
   useEffect(() => {
-    const fetchKios = async () => {
-      const data = await Kios.getAll();
-      setKiosList(data);
-      setLoading(false);
+    const handler = setTimeout(() => {
+      const fetchKios = async () => {
+        setLoading(true);
+        const data = await Kios.getAll(search);
+        setKiosList(data);
+        setLoading(false);
+      };
+      fetchKios();
+    }, 500);
+    return () => {
+      clearTimeout(handler);
     };
-    fetchKios();
-  }, []);
-
-  const filteredKios = kiosList.filter((kios) =>
-    kios.nama_kios?.toLowerCase().includes(search.toLowerCase())
-  );
+  }, [search]);
 
   return (
     <div>
@@ -60,21 +61,24 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
             <p className="text-center text-gray-500 col-span-full">
               Loading kios...
             </p>
-          ) : filteredKios.length > 0 ? (
+          ) : kiosList.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredKios.map((kios) => (
+              {kiosList.map((kios) => (
                 <KiosCard
                   key={kios.id || kios._id}
                   kiosId={kios.id || kios._id}
                   name={kios.nama_kios}
                   description={kios.deskripsi}
-                  gambar_kios={kios.gambar_kios} 
+                  gambar_kios={kios.gambar_kios}
                 />
               ))}
             </div>
           ) : (
+      
             <p className="text-gray-500 col-span-full text-center">
-              Tidak ada kios ditemukan
+              {search
+                ? `Kios dengan nama "${search}" tidak ditemukan`
+                : "Belum ada kios yang terdaftar"}
             </p>
           )}
         </div>

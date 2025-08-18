@@ -2,9 +2,13 @@ import axios from "axios";
 import { API_URL } from "./Api";
 
 export const Kios = {
-  getAll: async () => {
+  getAll: async (searchTerm = "") => {
     try {
-      const res = await axios.get(`${API_URL}/api/kios`);
+      const url = searchTerm
+        ? `${API_URL}/api/kios/search?query=${searchTerm}`
+        : `${API_URL}/api/kios`;
+
+      const res = await axios.get(url);
       return res.data || [];
     } catch (err) {
       console.error("Gagal ambil kios:", err);
@@ -22,9 +26,12 @@ export const Kios = {
     }
   },
 
-  getMenusByKios: async (kiosId) => {
+  getMenusByKios: async (kiosId, searchTerm = "") => {
     try {
-      const res = await axios.get(`${API_URL}/api/kios/${kiosId}/menus`);
+      const url = searchTerm
+        ? `${API_URL}/api/kios/${kiosId}/menus/search?query=${searchTerm}`
+        : `${API_URL}/api/kios/${kiosId}/menus`;
+      const res = await axios.get(url);
       return res.data || [];
     } catch (err) {
       console.error("Gagal ambil menu kios:", err);

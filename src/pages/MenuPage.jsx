@@ -1,4 +1,3 @@
-// src/pages/MenuPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import HeaderMenu from "../components/Header/HeaderMenu";
@@ -9,105 +8,107 @@ import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
 import { Keranjang } from "../services/Keranjang";
 
+// untuk menampilkan semua menu dan hasil search
+const mapApiToMenuState = (apiData) => ({
+  id: apiData.id,
+  name: apiData.nama_menu,
+  price: apiData.harga,
+  isAvailable: apiData.status_tersedia,
+  image: apiData.foto_menu
+    ? `${import.meta.env.VITE_API_URL}/uploads/${apiData.foto_menu}`
+    : "/images/menudefault.jpg",
+});
+
 export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
   const { kiosId } = useParams();
   const [kios, setKios] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isCartInitialized, setIsCartInitialized] = useState(false);
 
-  // guestId
-  let guestId = localStorage.getItem("guestId");
-  if (!guestId) {
-    guestId = `guest-${Date.now()}`;
-    localStorage.setItem("guestId", guestId);
-  }
+  const [guestId] = useState(() => {
+    let id = localStorage.getItem("guestId");
+    if (!id) {
+      id = `guest-${Date.now()}`;
+      localStorage.setItem("guestId", id);
+    }
+    return id;
+  });
 
-  // Ambil data kios
+
   useEffect(() => {
-    (async () => {
+    const fetchKiosAndMenus = async () => {
+      if (!kiosId) return;
+      setLoading(true);
       try {
-        const data = await Kios.getById(kiosId);
-        setKios(data);
-      } catch (err) {
-        console.error("Gagal ambil kios:", err);
-      }
-    })();
-  }, [kiosId]);
+        const [kiosData, menuData] = await Promise.all([
+          Kios.getById(kiosId),
+          Kios.getMenusByKios(kiosId, searchTerm),
+        ]);
 
-  // Ambil menu kios
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await Kios.getMenusByKios(kiosId);
-        const mapped = data.map((item) => ({
-          id: item.id,
-          name: item.nama_menu,
-          price: item.harga,
-          image: item.foto_menu
-            ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-            : "/images/menudefault.jpg",
-        }));
-        setMenuItems(mapped);
+        setKios(kiosData);
+        setMenuItems(menuData.map(mapApiToMenuState));
       } catch (err) {
-        console.error("Gagal ambil menu kios:", err);
+        console.error("Gagal mengambil data kios atau menu:", err);
       } finally {
         setLoading(false);
       }
-    })();
-  }, [kiosId]);
+    };
 
-  // Ambil keranjang dari backend
+
+    const handler = setTimeout(fetchKiosAndMenus, 300);
+    return () => clearTimeout(handler);
+  }, [kiosId, searchTerm]);
+
+
   useEffect(() => {
-    (async () => {
-      try {
-        const keranjangData = await Keranjang.getKeranjang(guestId);
-
-        const mappedCart = (
-          Array.isArray(keranjangData) ? keranjangData : []
-        ).reduce((acc, item) => {
-          const menuId = item.menu_id ?? item.menu?.id;
-          const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
-          const price = item.menu?.harga ?? item.harga ?? 0;
-          const image =
-            item.menu?.foto_url ??
-            (item.foto_menu
-              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-              : "/images/menudefault.jpg");
-
-          acc[menuId] = {
-            cartId: item.id, // id keranjang
-            id: menuId,
-            name,
-            price,
-            image,
-            qty: item.jumlah ?? 0,
-          };
-          return acc;
-        }, {});
-
-        setCart(mappedCart);
-      } catch (err) {
-        console.error("Gagal ambil keranjang:", err);
+    const fetchInitialCart = async () => {
+      if (guestId && Object.keys(cart).length === 0 && !isCartInitialized) {
+        try {
+          const keranjangData = await Keranjang.getKeranjang(guestId);
+          if (keranjangData && keranjangData.length > 0) {
+            const mappedCart = keranjangData.reduce((acc, item) => {
+              const menuId = item.menu_id ?? item.menu?.id;
+              if (menuId) {
+                acc[menuId] = {
+                  cartId: item.id,
+                  id: menuId,
+                  name: item.menu?.nama ?? item.nama_menu ?? "Menu",
+                  price: item.menu?.harga ?? item.harga ?? 0,
+                  image:
+                    item.menu?.foto_url ??
+                    (item.foto_menu
+                      ? `${import.meta.env.VITE_API_URL}/uploads/${
+                          item.foto_menu
+                        }`
+                      : "/images/menudefault.jpg"),
+                  qty: item.jumlah ?? 0,
+                };
+              }
+              return acc;
+            }, {});
+            setCart(mappedCart);
+          }
+        } catch (err) {
+          console.error("Gagal mengambil keranjang:", err);
+        } finally {
+          setIsCartInitialized(true); 
+        }
+      } else if (!isCartInitialized) {
+        setIsCartInitialized(true);
       }
-    })();
-  }, [guestId, setCart]);
+    };
 
-  const filteredMenu = menuItems.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    fetchInitialCart();
+  }, [guestId, cart, setCart, isCartInitialized]);
 
-  const totalCartItems = Object.values(cart || {}).reduce(
-    (total, item) => total + (item.qty || 0),
-    0
-  );
-
-  // Tambah item ke keranjang
-  async function addToCart(id) {
+  const addToCart = async (id) => {
     const item = menuItems.find((menu) => menu.id === id);
-    if (!item) return;
+    if (!item || !item.isAvailable) return;
 
-    if (!cart[id]) {
+    const existingCartItem = cart[id];
+    if (!existingCartItem) {
       try {
         const res = await Keranjang.addItem(guestId, id, 1);
         setCart((prev) => ({
@@ -118,9 +119,9 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         console.error("Gagal tambah ke keranjang:", err);
       }
     } else {
-      const newQty = cart[id].qty + 1;
+      const newQty = existingCartItem.qty + 1;
       try {
-        await Keranjang.updateItem(guestId, cart[id].cartId, newQty);
+        await Keranjang.updateItem(guestId, existingCartItem.cartId, newQty);
         setCart((prev) => ({
           ...prev,
           [id]: { ...prev[id], qty: newQty },
@@ -129,28 +130,27 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         console.error("Gagal update jumlah:", err);
       }
     }
-  }
+  };
 
-  // Kurangi item dari keranjang
-  async function decreaseQty(id) {
-    if (!cart[id]) return;
+  const decreaseQty = async (id) => {
+    const existingCartItem = cart[id];
+    if (!existingCartItem) return;
 
-    const newQty = cart[id].qty - 1;
-
+    const newQty = existingCartItem.qty - 1;
     if (newQty <= 0) {
       try {
-        await Keranjang.removeItem(guestId, cart[id].cartId);
+        await Keranjang.removeItem(guestId, existingCartItem.cartId);
         setCart((prev) => {
-          const tmp = { ...prev };
-          delete tmp[id];
-          return tmp;
+          const newCart = { ...prev };
+          delete newCart[id];
+          return newCart;
         });
       } catch (err) {
         console.error("Gagal hapus item:", err);
       }
     } else {
       try {
-        await Keranjang.updateItem(guestId, cart[id].cartId, newQty);
+        await Keranjang.updateItem(guestId, existingCartItem.cartId, newQty);
         setCart((prev) => ({
           ...prev,
           [id]: { ...prev[id], qty: newQty },
@@ -159,7 +159,12 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         console.error("Gagal update jumlah:", err);
       }
     }
-  }
+  };
+
+  const totalCartItems = Object.values(cart || {}).reduce(
+    (total, item) => total + (item.qty || 0),
+    0
+  );
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
@@ -171,11 +176,8 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
           onClose={() => setShowCart(false)}
         />
       )}
-
       <HeaderMenu kios={kios} />
-
       <div className="mx-auto px-5 md:px-15 pt-20">
-        {/* Search & Cart */}
         <div className="flex items-center mb-6">
           <div className="flex-1">
             <SearchBar
@@ -196,14 +198,12 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
           </div>
         </div>
 
-        {/* Menu list */}
         <h3 className="font-bold text-lg md:text-xl mb-3">Semua Menu</h3>
-
         {loading ? (
-          <p className="text-center text-gray-500">Loading menu...</p>
-        ) : filteredMenu.length > 0 ? (
+          <p className="text-center text-gray-500">Memuat menu...</p>
+        ) : menuItems.length > 0 ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            {filteredMenu.map((item) => (
+            {menuItems.map((item) => (
               <MenuCard
                 key={item.id}
                 item={item}
@@ -214,7 +214,11 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
             ))}
           </div>
         ) : (
-          <p className="text-center text-gray-500">Tidak ada menu ditemukan</p>
+          <p className="text-center text-gray-500">
+            {searchTerm
+              ? `Menu dengan nama "${searchTerm}" tidak ditemukan`
+              : "Kios ini belum memiliki menu"}
+          </p>
         )}
       </div>
     </div>

@@ -10,13 +10,23 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
   };
 
   const handleSetQty = (newQty) => {
+    if (!item.isAvailable) return;
     if (newQty > qty) addToCart(item.id);
     else if (newQty < qty) decreaseQty(item.id);
   };
 
+  const isButtonDisabled = !item.isAvailable;
+
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden flex flex-col hover:shadow-lg transition">
-      <div onClick={goToDetail} className="cursor-pointer">
+    <div
+      className={`bg-white rounded-md shadow overflow-hidden flex flex-col transition ${
+        isButtonDisabled ? "opacity-60" : "hover:shadow-lg"
+      }`}
+    >
+      <div
+        onClick={isButtonDisabled ? null : goToDetail}
+        className="cursor-pointer"
+      >
         <img
           src={item.image}
           alt={item.name}
@@ -35,9 +45,14 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              addToCart(item.id);
+              if (!isButtonDisabled) {
+                addToCart(item.id);
+              }
             }}
-            className="mt-2 bg-primary text-white rounded-xl md:rounded-lg px-3 py-1 text-xs md:text-base font-semibold w-full cursor-pointer"
+            disabled={isButtonDisabled} 
+            className={`mt-2 rounded-xl md:rounded-lg px-3 py-1 text-xs md:text-base font-semibold w-full cursor-pointer
+              bg-primary text-white
+              ${isButtonDisabled ? "cursor-not-allowed" : ""}`} 
           >
             Tambah Keranjang
           </button>
@@ -46,7 +61,14 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
             onClick={(e) => e.stopPropagation()}
             className="mt-2 flex justify-center"
           >
-            <QuantityControl qty={qty} setQty={handleSetQty} />
+            {/* Tampilkan QuantityControl hanya jika menu tersedia */}
+            {item.isAvailable ? (
+              <QuantityControl qty={qty} setQty={handleSetQty} />
+            ) : (
+              <p className="text-sm font-semibold text-gray-500">
+                Menu tidak tersedia
+              </p>
+            )}
           </div>
         )}
       </div>
