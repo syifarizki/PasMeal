@@ -29,8 +29,14 @@ export default function OrderConfirmation() {
     const fetchCart = async () => {
       try {
         setLoading(true);
-        const guestId = localStorage.getItem("guestId"); 
-        if (!guestId) throw new Error("Guest ID tidak ditemukan");
+        const guestId = localStorage.getItem("guestId");
+        if (!guestId) {
+          setError(
+            "Guest ID tidak ditemukan, silakan kembali ke halaman utama."
+          );
+          setLoading(false);
+          return;
+        }
 
         const res = await Keranjang.getKeranjang(guestId);
 
@@ -80,6 +86,7 @@ export default function OrderConfirmation() {
   const updateQty = async (id, newQty) => {
     try {
       const guestId = localStorage.getItem("guestId");
+      if (!guestId) return;
       await Keranjang.updateItem(guestId, id, newQty);
 
       setCart((prev) => {
@@ -97,8 +104,10 @@ export default function OrderConfirmation() {
     return <div className="p-6 text-center">Memuat keranjang...</div>;
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
 
+  const initialFormState = {};
+
   return (
-    <div className="bg-white font-sans">
+    <div className="bg-white ">
       {/* Header */}
       <header
         className="p-6 text-white font-bold text-lg relative flex items-center justify-center lg:justify-start"
@@ -119,7 +128,7 @@ export default function OrderConfirmation() {
         </h1>
       </header>
 
-      {/* Delivery Type Selector */}
+      {/* Tipe Pengantaran */}
       <div className="flex border-b border-primary text-black font-semibold text-base lg:text-lg">
         {["pesanAntar", "ambilSendiri"].map((type) => (
           <button
@@ -140,7 +149,7 @@ export default function OrderConfirmation() {
 
       {/* Main Content */}
       <div className="px-6 py-8 lg:flex lg:items-start lg:px-12 lg:gap-12">
-        {/* Order Summary */}
+        {/* Ringkasan Pesanan */}
         <div className="lg:w-1/2 mb-8 lg:mb-0">
           <h2 className="font-bold text-xl mb-4 lg:-mt-2">Ringkasan Pesanan</h2>
 
@@ -205,6 +214,8 @@ export default function OrderConfirmation() {
             qty={totalQty}
             items={items}
             totalPrice={totalPrice}
+            showPayButton={true}
+            initialData={initialFormState}
           />
         </div>
       </div>

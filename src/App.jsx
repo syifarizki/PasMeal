@@ -6,6 +6,7 @@ import KiosPage from "./pages/KiosPage.jsx";
 import MenuPage from "./pages/MenuPage.jsx";
 import DetailMenuPage from "./pages/DetailMenuPage.jsx";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage.jsx";
+import TimeEstimatePage from "./pages/TimeEstimatePage.jsx";
 
 function App() {
   const [cart, setCart] = useState({});
@@ -64,6 +65,10 @@ function App() {
           <Route
             path="OrderConfirmationPage"
             element={<OrderConfirmationPage cart={cart} setCart={setCart} />}
+          />
+          <Route
+            path="TimeEstimatePage"
+            element={<TimeEstimatePage cart={cart} setCart={setCart} />}
           />
         </Route>
       </Routes>

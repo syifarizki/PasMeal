@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import InputText from "./Input/InputText";
 import InputPhone from "./Input/InputPhone";
 import TextArea from "./Input/TextArea";
@@ -11,11 +12,18 @@ import successIcon from "/images/berhasil.png";
 import errorIcon from "/images/gagal.png";
 import pendingIcon from "/images/pending.png";
 
-export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
-  const [nama, setNama] = useState("");
-  const [noHp, setNoHp] = useState("");
-  const [catatan, setCatatan] = useState("");
-  const [diantarKe, setDiantarKe] = useState("");
+export default function OrderForm({
+  deliveryType,
+  qty,
+  items,
+  totalPrice,
+  showPayButton = true,
+  initialData = {},
+}) {
+  const [nama, setNama] = useState(initialData.nama || "");
+  const [noHp, setNoHp] = useState(initialData.noHp || "");
+  const [catatan, setCatatan] = useState(initialData.catatan || "");
+  const [diantarKe, setDiantarKe] = useState(initialData.diantarKe || "");
   const [loading, setLoading] = useState(false);
   const [snapReady, setSnapReady] = useState(false);
   const [notif, setNotif] = useState({
@@ -24,7 +32,10 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
     message: "",
     buttonText: "Tutup",
     iconImage: null,
+    onConfirm: null,
   });
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (window.snap) return setSnapReady(true);
@@ -39,6 +50,13 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
     document.body.appendChild(script);
   }, []);
 
+  useEffect(() => {
+    setNama(initialData.nama || "");
+    setNoHp(initialData.noHp || "");
+    setCatatan(initialData.catatan || "");
+    setDiantarKe(initialData.diantarKe || "");
+  }, [initialData]);
+
   const isFormValid =
     qty > 0 &&
     nama.trim() &&
@@ -49,9 +67,10 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
     title,
     message,
     iconImage,
-    buttonText = "Tutup"
+    buttonText = "Oke",
+    onConfirm = null
   ) => {
-    setNotif({ show: true, title, message, iconImage, buttonText });
+    setNotif({ show: true, title, message, iconImage, buttonText, onConfirm });
   };
 
   const handleSubmit = async (e) => {
@@ -89,12 +108,14 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
     try {
       setLoading(true);
 
-      // 1. Buat pesanan
       const pesananRes = await Pesanan.buatPesanan(payloadPesanan);
       const pesanan_id = pesananRes?.id;
       if (!pesanan_id) throw new Error("Pesanan gagal dibuat");
 
-      // 2. Buat transaksi Midtrans
+      const pesananDetail = await Payment.getPesananDetail(pesanan_id);
+      const namaKios = pesananDetail?.kios?.nama_kios || "Kios";
+      const namaPemesan = pesananDetail?.nama_pemesan || nama;
+
       const transaksiRes = await Payment.createTransaction({
         pesanan_id,
         guest_id: guestId,
@@ -108,18 +129,21 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
       });
       if (!transaksiRes?.token) throw new Error("Token Snap tidak ditemukan");
 
-      // 3. Jalankan Snap
       window.snap.pay(transaksiRes.token, {
-        onSuccess: async () => {
-          // Fetch ulang status pesanan dari backend
-          const updatedPesanan = await Payment.getPesananDetail(pesanan_id);
-          const statusText = updatedPesanan?.status || "dibayar";
-
+        onSuccess: () => {
           showNotification(
             "Yey!",
-            `Pembayaran berhasil, status pesanan: ${statusText}.`,
+            "Pembayaran berhasil!",
             successIcon,
-            "Oke"
+            "Oke",
+            () =>
+              navigate("/TimeEstimatePage", {
+                state: {
+                  pesananId: pesanan_id,
+                  namaKios,
+                  namaPemesan,
+                },
+              })
           );
         },
         onPending: () => {
@@ -154,18 +178,20 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="md:flex-1 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="md:flex-1 flex flex-col gap-6">
         <InputText
           label="Nama"
           value={nama}
           onChange={(e) => setNama(e.target.value)}
           placeholder="Nama"
+          readOnly={!showPayButton} 
         />
         <InputPhone
           label="Nomor WhatsApp"
           value={noHp}
           onChange={setNoHp}
           placeholder="Nomor WhatsApp"
+          readOnly={!showPayButton} 
         />
         <TextArea
           label="Catatan Tambahan"
@@ -173,21 +199,26 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
           onChange={(e) => setCatatan(e.target.value)}
           placeholder="Catatan Tambahan"
           rows={2}
+          readOnly={!showPayButton} 
         />
         {deliveryType === "pesanAntar" && (
           <InputText
-            label="Alamat Pengantaran"
+            label="Diantar Ke?"
             value={diantarKe}
             onChange={(e) => setDiantarKe(e.target.value)}
             placeholder="Masukkan alamat lengkap"
+            readOnly={!showPayButton} 
           />
         )}
-        <PrimaryButton
-          type="submit"
-          text={loading ? "Memproses..." : "Bayar Sekarang"}
-          className="w-full py-2"
-          disabled={!isFormValid || loading || !snapReady}
-        />
+
+        {showPayButton && (
+          <PrimaryButton
+            type="submit"
+            text={loading ? "Memproses..." : "Bayar"}
+            className="w-full py-2"
+            disabled={!isFormValid || loading || !snapReady}
+          />
+        )}
       </form>
 
       <Notification
@@ -196,7 +227,10 @@ export default function OrderForm({ deliveryType, qty, items, totalPrice }) {
         message={notif.message}
         iconImage={notif.iconImage}
         buttonText={notif.buttonText}
-        onClose={() => setNotif({ ...notif, show: false })}
+        onClose={() => {
+          setNotif({ ...notif, show: false });
+          if (notif.onConfirm) notif.onConfirm();
+        }}
       />
     </>
   );

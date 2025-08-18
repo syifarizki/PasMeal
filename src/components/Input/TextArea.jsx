@@ -1,4 +1,11 @@
-const TextArea = ({ label, value, onChange, placeholder, rows = 4 }) => {
+const TextArea = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+  readOnly = false,
+}) => {
   return (
     <div className="relative mb-1" data-twe-input-wrapper-init>
       <textarea
@@ -7,17 +14,19 @@ const TextArea = ({ label, value, onChange, placeholder, rows = 4 }) => {
         placeholder={placeholder}
         rows={rows}
         className={`
-        peer block w-full min-h-[auto] rounded-lg border border-gray-300 px-3 py-[0.50rem]
+          peer block w-full min-h-[auto] rounded-lg border border-gray-300 px-3 py-[0.50rem]
           outline-none transition-all duration-200 ease-linear
           focus:placeholder:opacity-100 peer-focus:text-revamp-neutral-10
           data-[twe-input-state-active]:placeholder:opacity-100
           motion-reduce:transition-none
           [&:not([data-twe-input-placeholder-active])]:placeholder:opacity-0
+          ${readOnly ? " text-black" : ""}
         `}
+        readOnly={readOnly}
       />
       <label
         className={`
-         pointer-events-none absolute left-3 top-0 mb-0 max-w-[90%] 
+          pointer-events-none absolute left-3 top-0 mb-0 max-w-[90%] 
           origin-[0_0] truncate text-neutral-500 transition-all duration-200 ease-out
           motion-reduce:transition-none text-revamp-neutral-10
           ${
@@ -27,7 +36,7 @@ const TextArea = ({ label, value, onChange, placeholder, rows = 4 }) => {
           }
           peer-data-[twe-input-state-active]:-translate-y-[0.9rem]
           peer-data-[twe-input-state-active]:scale-[0.9]
-      `}
+        `}
       >
         {label}
       </label>

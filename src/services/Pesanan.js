@@ -11,4 +11,18 @@ export const Pesanan = {
       throw err;
     }
   },
+
+  getDetailPesanan: async (pesananId) => {
+    try {
+      const res = await axios.get(`${API_URL}/api/pesanan/${pesananId}`);
+      // backend kirim { ...pesanan, items: [...] }
+      return res.data;
+    } catch (err) {
+      console.error(
+        "Gagal ambil detail pesanan:",
+        err.response?.data || err.message
+      );
+      throw err;
+    }
+  },
 };

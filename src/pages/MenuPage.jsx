@@ -202,7 +202,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         {loading ? (
           <p className="text-center text-gray-500">Loading menu...</p>
         ) : filteredMenu.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             {filteredMenu.map((item) => (
               <MenuCard
                 key={item.id}

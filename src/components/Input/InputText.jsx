@@ -4,6 +4,7 @@ const InputText = ({
   value,
   onChange,
   placeholder,
+  readOnly = false, 
   errorMessage = "",
 }) => {
   const hasError = errorMessage.length > 0;
@@ -22,7 +23,9 @@ const InputText = ({
           data-[twe-input-state-active]:placeholder:opacity-100
           motion-reduce:transition-none
           [&:not([data-twe-input-placeholder-active])]:placeholder:opacity-0
+          ${readOnly ? " text-black" : ""}
         `}
+        readOnly={readOnly} 
       />
 
       <label
