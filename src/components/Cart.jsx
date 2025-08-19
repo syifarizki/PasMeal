@@ -1,4 +1,3 @@
-// src/components/Cart.jsx
 import { FiX } from "react-icons/fi";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,15 +5,15 @@ import QuantityControl from "./QuantityControl";
 import PrimaryButton from "./PrimaryButton";
 import { Keranjang } from "../services/Keranjang";
 
-export default function Cart({ guestId, cart, setCart, onClose }) {
+export default function Cart({ guest_id, cart, setCart, onClose }) {
   const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
 
-  // Load cart dari API saat pertama kali
+  // Load cart dari API
   useEffect(() => {
     const fetchCart = async () => {
-      if (!guestId) return;
-      const items = await Keranjang.getKeranjang(guestId);
+      if (!guest_id) return;
+      const items = await Keranjang.getKeranjang(guest_id);
 
       const cartObj = {};
       items.forEach((item) => {
@@ -41,22 +40,22 @@ export default function Cart({ guestId, cart, setCart, onClose }) {
     };
 
     fetchCart();
-  }, [guestId, setCart]);
+  }, [guest_id, setCart]);
 
-  // Update qty ke API + update state
+  // Update qty
   const updateCartQty = async (menuId, newQty) => {
     const cartItemId = cart[menuId]?.cartId;
     if (!cartItemId) return;
 
     if (newQty <= 0) {
-      await Keranjang.removeItem(guestId, cartItemId);
+      await Keranjang.removeItem(guest_id, cartItemId);
       setCart((prev) => {
         const newCart = { ...prev };
         delete newCart[menuId];
         return newCart;
       });
     } else {
-      const updated = await Keranjang.updateItem(guestId, cartItemId, newQty);
+      const updated = await Keranjang.updateItem(guest_id, cartItemId, newQty);
       if (updated) {
         setCart((prev) => ({
           ...prev,
@@ -75,7 +74,7 @@ export default function Cart({ guestId, cart, setCart, onClose }) {
     navigate("/OrderConfirmationPage");
   };
 
-  // Cek ukuran layar
+  // Responsive check
   useEffect(() => {
     const checkScreen = () => setIsDesktop(window.innerWidth >= 1024);
     checkScreen();
@@ -90,8 +89,8 @@ export default function Cart({ guestId, cart, setCart, onClose }) {
       <div
         className={`bg-white shadow-lg flex flex-col max-h-screen ${
           isDesktop
-            ? "lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:rounded-l-2xl lg:w-[400px] animate-slideInRight"
-            : "w-full rounded-t-2xl fixed bottom-0 animate-slideInUp"
+            ? "lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:w-[400px] lg:rounded-l-2xl animate-slideInRight"
+            : "w-full fixed bottom-0 rounded-t-2xl animate-slideInUp"
         }`}
       >
         {/* Header */}
@@ -105,7 +104,7 @@ export default function Cart({ guestId, cart, setCart, onClose }) {
           </button>
         </div>
 
-        {/* Isi Keranjang */}
+        {/* Isi keranjang */}
         <div className="flex-1 overflow-y-auto p-4 mb-3">
           {Object.keys(cart).length === 0 ? (
             <p className="text-gray-500">Keranjang kosong</p>

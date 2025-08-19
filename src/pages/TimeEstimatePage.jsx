@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaArrowRotateLeft } from "react-icons/fa6";
 import { IoBagCheck } from "react-icons/io5";
@@ -18,54 +18,66 @@ export default function TimeEstimatePage() {
   const [orderStatus, setOrderStatus] = useState("processing");
   const [progress, setProgress] = useState(0);
 
-  const formatRupiah = (value) =>
-    "Rp" +
-    Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
+  // Format Rupiah lebih standar
+  const formatRupiah = (angka) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(angka || 0);
 
   useEffect(() => {
     const fetchPesanan = async () => {
-      const pesananId = location.state?.pesananId;
-      if (!pesananId) {
-        setLoading(false);
-        return;
-      }
-
+      setLoading(true);
       try {
-        const detailPesanan = await Pesanan.getDetailPesanan(pesananId);
-        if (detailPesanan && detailPesanan.kios_id) {
+        const pesananId = location.state?.pesananId;
+        if (!pesananId) {
+          console.error("Pesanan ID tidak ditemukan di location state.");
+          return;
+        }
+
+        const guestId = localStorage.getItem("guest_id");
+        if (!guestId) {
+          console.error("Guest ID tidak ditemukan di localStorage.");
+          return;
+        }
+
+        // Ambil detail pesanan utama
+        const detailPesanan = await Pesanan.getPesananDetail(
+          pesananId,
+          guestId
+        );
+
+        if (!detailPesanan) {
+          throw new Error("Detail pesanan tidak ditemukan.");
+        }
+
+        let pesananLengkap = { ...detailPesanan };
+
+        // Ambil detail kios jika ada kios_id
+        if (detailPesanan.kios_id) {
           const detailKios = await Kios.getById(detailPesanan.kios_id);
-          const pesananLengkap = {
-            ...detailPesanan,
-            kios: detailKios,
-          };
-          setPesanan(pesananLengkap);
-          const status =
-            pesananLengkap.status === "done" ? "completed" : "processing";
-          setOrderStatus(status);
-          if (status === "completed") {
-            setProgress(100);
-          }
-        } else {
-          setPesanan(detailPesanan);
-          const status =
-            detailPesanan.status === "done" ? "completed" : "processing";
-          setOrderStatus(status);
-          if (status === "completed") {
-            setProgress(100);
-          }
+          pesananLengkap.kios = detailKios;
+        }
+
+        setPesanan(pesananLengkap);
+
+        // Atur status dan progress
+        const status =
+          pesananLengkap.status === "done" ? "completed" : "processing";
+        setOrderStatus(status);
+        if (status === "completed") {
+          setProgress(100);
         }
       } catch (err) {
-        console.error("Gagal fetch pesanan atau detail kios:", err);
+        console.error("Gagal mengambil data pesanan:", err);
+        setPesanan(null);
       } finally {
         setLoading(false);
       }
     };
 
-    if (location.state?.pesananId) {
-      fetchPesanan();
-    } else {
-      setLoading(false);
-    }
+    fetchPesanan();
   }, [location.state]);
 
   const handlePesanLagi = () => {
@@ -82,16 +94,24 @@ export default function TimeEstimatePage() {
   };
 
   if (loading) return <div className="p-6 text-center">Memuat pesanan...</div>;
-  if (!pesanan)
-    return <div className="p-6 text-center">Pesanan tidak ditemukan</div>;
+
+  if (!pesanan) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-xl font-semibold mb-4">Gagal Memuat Pesanan</p>
+        <p className="text-gray-600 mb-6">
+          Pesanan tidak ditemukan atau Anda tidak memiliki akses.
+        </p>
+        <PrimaryButton
+          text="Kembali ke Beranda"
+          onClick={() => navigate("/")}
+        />
+      </div>
+    );
+  }
 
   const items = pesanan.items || [];
   const totalQty = items.reduce((sum, item) => sum + (item.jumlah || 1), 0);
-  const totalPrice = items.reduce(
-    (sum, item) => sum + (item.harga || 0) * (item.jumlah || 1),
-    0
-  );
-
   const isOrderCompleted = orderStatus === "completed";
 
   return (
@@ -111,50 +131,46 @@ export default function TimeEstimatePage() {
       {/* Progress Pesanan */}
       <div className="flex flex-col w-full">
         <div className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 mt-4 md:mt-6 md:px-8 lg:px-20">
+          {/* Proses */}
           <div className="flex flex-col items-center">
-            <div
-              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-300 ${
-                isOrderCompleted
-                  ? "bg-primary border-primary text-white"
-                  : "bg-primary border-primary text-white"
-              }`}
-            >
-              <FaArrowRotateLeft className="text-lg md:text-xl text-white" />
+            <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 bg-primary border-primary text-white">
+              <FaArrowRotateLeft className="text-lg md:text-xl" />
             </div>
             <span className="mt-2 text-sm md:text-base font-semibold text-primary">
               Pesanan Diproses
             </span>
           </div>
 
+          {/* Progress Bar */}
           <div className="flex-1 relative -mt-6">
             <div className="h-2 bg-gray-300 rounded-full w-full">
               <div
-                className={`h-2 transition-all duration-500 rounded-full bg-primary`}
+                className="h-2 transition-all duration-500 rounded-full bg-primary"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
           </div>
 
+          {/* Selesai */}
           <div className="flex flex-col items-center">
             <div
               className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-300 ${
                 isOrderCompleted
-                  ? "bg-primary border-primary"
-                  : "bg-black border-black"
+                  ? "bg-primary border-primary text-white"
+                  : "bg-gray-300 border-gray-300 text-gray-500"
               }`}
             >
-              <IoBagCheck className="text-lg md:text-xl text-white" />
+              <IoBagCheck className="text-lg md:text-xl" />
             </div>
             <span
-              className={`mt-2 text-sm md:text-base font-semibold ${
-                isOrderCompleted ? "text-primary" : "text-black"
+              className={`mt-2 text-sm md:text-base font-semibold transition-colors duration-300 ${
+                isOrderCompleted ? "text-primary" : "text-gray-500"
               }`}
             >
               Pesanan Selesai
             </span>
           </div>
         </div>
-
         <div className="w-full h-0.5 bg-primary mt-4"></div>
       </div>
 
@@ -163,20 +179,21 @@ export default function TimeEstimatePage() {
         <div className="lg:w-1/2 mb-8 lg:mb-0">
           <h2 className="font-bold text-xl mb-4 lg:-mt-2">Ringkasan Pesanan</h2>
 
+          {/* Delivery & Timer */}
           <div className="flex justify-between items-center mb-4">
-            <button className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium">
+            <div className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium">
               {pesanan.tipe_pengantaran === "diantar"
                 ? "Diantar"
                 : "Ambil Sendiri"}
-            </button>
+            </div>
             <div className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium flex items-center gap-1">
               <RiTimerLine className="w-5 h-6" />
               {isOrderCompleted ? (
                 <span className="font-semibold">Selesai</span>
               ) : (
                 <Timer
-                  minutes={pesanan.total_estimasi || 10}
-                  pesananId={pesanan.id}
+                  key={pesanan.id}
+                  minutes={parseInt(pesanan.total_estimasi || 10, 10)}
                   onFinish={handleTimerFinish}
                   onProgress={handleProgressUpdate}
                 />
@@ -184,70 +201,70 @@ export default function TimeEstimatePage() {
             </div>
           </div>
 
+          {/* Nama Kios */}
           <div className="flex items-center gap-2 font-medium p-2 border border-gray-200 rounded-lg w-full mb-4">
             <BiStore className="w-6 h-6 text-gray-700" />
             <span className="text-gray-700">
-              {pesanan.kios?.nama_kios || "Nama Kios tidak ditemukan"}
+              {pesanan.kios?.nama_kios || "Nama Kios"}
             </span>
           </div>
 
+          {/* List Pesanan */}
           <div className="border border-gray-200 rounded-md p-3 mb-4 w-full">
             <div className="mb-3 text-gray-700">
               <span className="font-medium">Pesanan:</span>
             </div>
-
-            {items.length > 0 ? (
-              items.map((item) => (
-                <div
-                  key={item.id || item.menu_id}
-                  className="flex items-center justify-between mb-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={item.foto_menu || "/images/menudefault.jpg"}
-                      alt={item.nama_menu}
-                      className="w-15 h-15 object-cover rounded"
-                    />
-                    <span className="font-bold text-base">
-                      {item.nama_menu} x{item.jumlah}
-                    </span>
-                  </div>
-                  <span className="text-primary font-semibold">
-                    {formatRupiah(item.harga * item.jumlah)}
+            {items.map((item) => (
+              <div
+                key={item.id || item.menu_id}
+                className="flex items-center justify-between mb-3"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      item.foto_menu
+                        ? `${import.meta.env.VITE_API_URL}/uploads/${
+                            item.foto_menu
+                          }`
+                        : "/images/menudefault.jpg"
+                    }
+                    alt={item.nama_menu}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                  <span className="font-bold text-base">
+                    {item.nama_menu} x{item.jumlah}
                   </span>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500 font-semibold">
-                Pesanan kosong
+                <span className="text-primary font-semibold">
+                  {formatRupiah(item.harga * item.jumlah)}
+                </span>
               </div>
-            )}
+            ))}
           </div>
         </div>
-        {/* Form Data Pembe;i */}
+
+        {/* Data Pembeli */}
         <div className="lg:w-1/2 mt-4 mb-10">
           <OrderForm
             deliveryType={pesanan.tipe_pengantaran}
             qty={totalQty}
-            items={items}
-            totalPrice={totalPrice}
             showPayButton={false}
             initialData={{
-              nama: pesanan.nama_pemesan,
-              noHp: pesanan.no_hp,
+              nama_pemesan: pesanan.nama_pemesan,
+              no_hp: pesanan.no_hp,
               catatan: pesanan.catatan,
-              diantarKe: pesanan.diantar_ke,
+              diantar_ke: pesanan.diantar_ke,
             }}
           />
         </div>
       </div>
 
-      {/* Button */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] lg:w-[500px] ">
+      {/* Button Pesan Lagi */}
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] lg:w-[500px]">
         <PrimaryButton
           text="Pesan Lagi"
           onClick={handlePesanLagi}
-          disabled={!isOrderCompleted}
+          disabled={!isOrderCompleted} 
           className="w-full text-lg font-medium shadow-lg"
         />
       </div>

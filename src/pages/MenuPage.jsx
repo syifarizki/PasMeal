@@ -27,16 +27,17 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
   const [loading, setLoading] = useState(true);
   const [isCartInitialized, setIsCartInitialized] = useState(false);
 
+  // konsisten pakai guest_id
   const [guestId] = useState(() => {
-    let id = localStorage.getItem("guestId");
+    let id = localStorage.getItem("guest_id");
     if (!id) {
       id = `guest-${Date.now()}`;
-      localStorage.setItem("guestId", id);
+      localStorage.setItem("guest_id", id);
     }
     return id;
   });
 
-
+  // fetch kios & menu
   useEffect(() => {
     const fetchKiosAndMenus = async () => {
       if (!kiosId) return;
@@ -56,12 +57,11 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
       }
     };
 
-
     const handler = setTimeout(fetchKiosAndMenus, 300);
     return () => clearTimeout(handler);
   }, [kiosId, searchTerm]);
 
-
+  // fetch keranjang awal
   useEffect(() => {
     const fetchInitialCart = async () => {
       if (guestId && Object.keys(cart).length === 0 && !isCartInitialized) {
@@ -93,7 +93,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         } catch (err) {
           console.error("Gagal mengambil keranjang:", err);
         } finally {
-          setIsCartInitialized(true); 
+          setIsCartInitialized(true);
         }
       } else if (!isCartInitialized) {
         setIsCartInitialized(true);
@@ -103,6 +103,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     fetchInitialCart();
   }, [guestId, cart, setCart, isCartInitialized]);
 
+  // tambah item ke cart
   const addToCart = async (id) => {
     const item = menuItems.find((menu) => menu.id === id);
     if (!item || !item.isAvailable) return;
@@ -132,6 +133,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     }
   };
 
+  // kurangi qty / hapus item
   const decreaseQty = async (id) => {
     const existingCartItem = cart[id];
     if (!existingCartItem) return;

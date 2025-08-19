@@ -29,17 +29,12 @@ export default function OrderConfirmation() {
     const fetchCart = async () => {
       try {
         setLoading(true);
-        const guestId = localStorage.getItem("guestId");
-        if (!guestId) {
-          setError(
-            "Guest ID tidak ditemukan, silakan kembali ke halaman utama."
-          );
-          setLoading(false);
+        const guest_id = localStorage.getItem("guest_id");
+        if (!guest_id) {
+          setError("Guest ID tidak ditemukan. Silakan kembali ke beranda.");
           return;
         }
-
-        const res = await Keranjang.getKeranjang(guestId);
-
+        const res = await Keranjang.getKeranjang(guest_id);
         if (res?.length > 0) {
           const mapped = {};
           res.forEach((item) => {
@@ -48,13 +43,9 @@ export default function OrderConfirmation() {
               name: item.nama_menu,
               price: item.harga,
               qty: item.jumlah,
-              image:
-                item.menu?.foto_url ??
-                (item.foto_menu
-                  ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-                  : "/images/menudefault.jpg"),
-              menuId: item.menu_id,
-              subtotal: item.subtotal,
+              image: item.foto_menu
+                ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
+                : "/images/menudefault.jpg",
               kiosId: item.kios_id,
             };
           });
@@ -64,35 +55,31 @@ export default function OrderConfirmation() {
           if (firstItem) {
             const kiosRes = await Kios.getById(firstItem.kiosId);
             setKiosId(firstItem.kiosId);
-            setKiosName(kiosRes?.nama_kios || "Nama Kios");
-          } else {
-            setKiosName("Nama Kios");
+            setKiosName(kiosRes?.nama_kios || "Nama Kios Tidak Ditemukan");
           }
-        } else {
-          setCart({});
-          setKiosName("Nama Kios");
         }
       } catch (err) {
         console.error("Gagal ambil keranjang:", err);
-        setError("Gagal memuat keranjang");
+        setError("Gagal memuat keranjang. Coba muat ulang halaman.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchCart();
   }, []);
 
   const updateQty = async (id, newQty) => {
     try {
-      const guestId = localStorage.getItem("guestId");
-      if (!guestId) return;
-      await Keranjang.updateItem(guestId, id, newQty);
-
+      const guest_id = localStorage.getItem("guest_id");
+      if (!guest_id) return;
+      await Keranjang.updateItem(guest_id, id, newQty);
       setCart((prev) => {
         const updated = { ...prev };
-        if (newQty <= 0) delete updated[id];
-        else updated[id] = { ...updated[id], qty: newQty };
+        if (newQty <= 0) {
+          delete updated[id];
+        } else {
+          updated[id] = { ...updated[id], qty: newQty };
+        }
         return updated;
       });
     } catch (err) {
@@ -104,10 +91,12 @@ export default function OrderConfirmation() {
     return <div className="p-6 text-center">Memuat keranjang...</div>;
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
 
-  const initialFormState = {};
+  // Memetakan nilai state 'deliveryType' ke nilai yang dimengerti oleh API.
+  const apiDeliveryType =
+    deliveryType === "pesanAntar" ? "diantar" : "ambil_sendiri";
 
   return (
-    <div className="bg-white ">
+    <div className="bg-white">
       {/* Header */}
       <header
         className="p-6 text-white font-bold text-lg relative flex items-center justify-center lg:justify-start"
@@ -152,9 +141,7 @@ export default function OrderConfirmation() {
         {/* Ringkasan Pesanan */}
         <div className="lg:w-1/2 mb-8 lg:mb-0">
           <h2 className="font-bold text-xl mb-4 lg:-mt-2">Ringkasan Pesanan</h2>
-
           <div className="border border-gray-200 rounded-md p-3 mb-4">
-            {/* Nama Toko */}
             <div className="flex justify-between items-center mb-3 text-gray-700">
               <div className="flex items-center gap-2 font-medium">
                 <BiStore className="w-6 h-6" />
@@ -169,8 +156,6 @@ export default function OrderConfirmation() {
                 Tambah Menu
               </button>
             </div>
-
-            {/* Items */}
             {items.length > 0 ? (
               items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 mb-3">
@@ -195,27 +180,25 @@ export default function OrderConfirmation() {
               ))
             ) : (
               <div className="text-center py-8 text-gray-500 font-semibold">
-                Pesanan kosong
+                Keranjang Anda kosong
               </div>
             )}
           </div>
-
-          {/* Total */}
           <div className="border border-gray-300 rounded-md p-3 text-lg flex justify-between items-center">
             <span className="font-bold">Total {totalQty} Menu:</span>
-            <span className="text-primary">Rp. {formatRupiah(totalPrice)}</span>
+            <span className="text-primary font-semibold">
+              Rp. {formatRupiah(totalPrice)}
+            </span>
           </div>
         </div>
 
         {/* Order Form */}
         <div className="lg:w-1/2">
           <OrderForm
-            deliveryType={deliveryType}
+            deliveryType={apiDeliveryType}
             qty={totalQty}
-            items={items}
-            totalPrice={totalPrice}
-            showPayButton={true}
-            initialData={initialFormState}
+            kiosId={kiosId}
+            totalPrice={totalPrice} 
           />
         </div>
       </div>

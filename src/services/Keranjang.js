@@ -1,15 +1,14 @@
-// src/services/Keranjang.js
 import axios from "axios";
 import { API_URL } from "./Api";
 
 export const Keranjang = {
-  getKeranjang: async (guestId) => {
-    if (!guestId) return [];
+  getKeranjang: async (guest_id) => {
+    if (!guest_id) return [];
     try {
       const res = await axios.get(`${API_URL}/api/keranjang`, {
-        headers: { "x-buyer-id": guestId },
+        headers: { "x-buyer-id": guest_id },
       });
-      return res.data.items || []; // backend return { items: [...] }
+      return res.data.items || [];
     } catch (err) {
       console.error(
         "Gagal ambil data keranjang:",
@@ -20,15 +19,14 @@ export const Keranjang = {
     }
   },
 
-  addItem: async (guestId, menu_id, jumlah = 1, catatan = "") => {
-    if (!guestId || !menu_id) return null;
+  addItem: async (guest_id, menu_id, jumlah = 1, catatan = "") => {
     try {
       const res = await axios.post(
         `${API_URL}/api/keranjang`,
         { menu_id, jumlah, catatan },
-        { headers: { "x-buyer-id": guestId } }
+        { headers: { "x-buyer-id": guest_id } }
       );
-      return res.data.item; // backend return { item: {...} }
+      return res.data.item;
     } catch (err) {
       console.error(
         "Gagal tambah item ke keranjang:",
@@ -39,13 +37,12 @@ export const Keranjang = {
     }
   },
 
-  updateItem: async (guestId, id, jumlah, catatan = null) => {
-    if (!guestId || !id) return null;
+  updateItem: async (guest_id, id, jumlah, catatan = "") => {
     try {
       const res = await axios.put(
         `${API_URL}/api/keranjang/${id}`,
         { jumlah, catatan },
-        { headers: { "x-buyer-id": guestId } }
+        { headers: { "x-buyer-id": guest_id } }
       );
       return res.data.item;
     } catch (err) {
@@ -58,11 +55,10 @@ export const Keranjang = {
     }
   },
 
-  removeItem: async (guestId, id) => {
-    if (!guestId || !id) return null;
+  removeItem: async (guest_id, id) => {
     try {
       const res = await axios.delete(`${API_URL}/api/keranjang/${id}`, {
-        headers: { "x-buyer-id": guestId },
+        headers: { "x-buyer-id": guest_id },
       });
       return res.data.item;
     } catch (err) {
@@ -75,3 +71,4 @@ export const Keranjang = {
     }
   },
 };
+

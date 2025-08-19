@@ -2,20 +2,28 @@ import axios from "axios";
 import { API_URL } from "./Api";
 
 export const Pesanan = {
-  buatPesanan: async (data) => {
+  //  Membuat pesanan di database berdasarkan keranjang.
+  buatPesanan: async (payload) => {
     try {
-      const res = await axios.post(`${API_URL}/api/pesanan`, data);
-      return res.data?.pesanan || res.data;
+      const res = await axios.post(`${API_URL}/api/pesanan`, payload);
+      return res.data;
     } catch (err) {
-      console.error("Gagal buat pesanan:", err.response?.data || err.message);
+      console.error(
+        "Gagal membuat pesanan:",
+        err.response?.data || err.message
+      );
       throw err;
     }
   },
 
-  getDetailPesanan: async (pesananId) => {
+  //  Mengambil detail lengkap dari sebuah pesanan untuk halaman status.
+  getPesananDetail: async (pesanan_id, guest_id) => {
     try {
-      const res = await axios.get(`${API_URL}/api/pesanan/${pesananId}`);
-      // backend kirim { ...pesanan, items: [...] }
+      if (!guest_id)
+        throw new Error("Guest ID wajib untuk mengambil detail pesanan.");
+      const res = await axios.get(
+        `${API_URL}/api/pesanan/${pesanan_id}?guest_id=${guest_id}`
+      );
       return res.data;
     } catch (err) {
       console.error(

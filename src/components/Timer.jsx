@@ -1,57 +1,71 @@
-// Timer.jsx
 import { useState, useEffect } from "react";
 
-export default function Timer({
-  minutes = 10,
-  pesananId,
-  onFinish,
-  onProgress,
-}) {
-  const [timeLeft, setTimeLeft] = useState(minutes * 60);
+export default function Timer({ minutes, onFinish, onProgress }) {
+  const storageKey = "order_end_time";
+  const finishedKey = "order_finished"; 
 
-  useEffect(() => {
-    if (!pesananId) return;
+  // hitung sisa waktu dari localStorage kalau ada
+  const getInitialTimeLeft = () => {
+    const savedEndTime = localStorage.getItem(storageKey);
+    const isFinished = localStorage.getItem(finishedKey);
 
-    const storageKey = `pesanan_${pesananId}_endTime`;
-    let endTime = localStorage.getItem(storageKey);
-
-    if (!endTime) {
-      endTime = Date.now() + minutes * 60 * 1000;
-      localStorage.setItem(storageKey, endTime);
+    if (isFinished === "true") {
+      return 0; 
     }
 
-    const tick = () => {
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((Number(endTime) - now) / 1000));
-      setTimeLeft(diff);
+    if (savedEndTime) {
+      const remaining = Math.floor((savedEndTime - Date.now()) / 1000);
+      return remaining > 0 ? remaining : 0;
+    }
+    return minutes * 60;
+  };
 
-      const totalTime = minutes * 60;
-      const progress = 100 - (diff / totalTime) * 100;
-      if (onProgress) {
-        onProgress(progress);
+  const [timeLeft, setTimeLeft] = useState(getInitialTimeLeft);
+
+  useEffect(() => {
+    const isFinished = localStorage.getItem(finishedKey);
+
+    // kalo udah selesai timernya janagn di ulang lagi
+    if (isFinished === "true") {
+      setTimeLeft(0);
+      onFinish?.();
+      return;
+    }
+
+    let savedEndTime = localStorage.getItem(storageKey);
+
+    // kalau belum ada endTime, buat baru
+    if (!savedEndTime) {
+      const newEndTime = Date.now() + minutes * 60 * 1000;
+      localStorage.setItem(storageKey, newEndTime);
+      savedEndTime = newEndTime;
+    }
+
+    const interval = setInterval(() => {
+      const remaining = Math.floor((savedEndTime - Date.now()) / 1000);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        onFinish?.();
+        localStorage.removeItem(storageKey);
+        localStorage.setItem(finishedKey, "true"); 
+      } else {
+        setTimeLeft(remaining);
+        const progress = ((minutes * 60 - remaining) / (minutes * 60)) * 100;
+        onProgress?.(progress);
       }
-
-      if (diff <= 0) {
-        if (onFinish) {
-          onFinish();
-        } 
-      }
-    };
-
-    const interval = setInterval(tick, 1000);
-
-    tick();
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [minutes, pesananId, onFinish, onProgress]);
+  }, [minutes, onFinish, onProgress]);
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
 
   return (
     <span className="font-semibold">
-         {mins.toString().padStart(2, "0")}:
-      {secs.toString().padStart(2, "0")} 
+      {mins}:{secs.toString().padStart(2, "0")}
     </span>
   );
 }
