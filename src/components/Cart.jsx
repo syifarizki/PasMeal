@@ -13,30 +13,34 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
   useEffect(() => {
     const fetchCart = async () => {
       if (!guest_id) return;
-      const items = await Keranjang.getKeranjang(guest_id);
+      try {
+        const items = await Keranjang.getKeranjang(guest_id);
 
-      const cartObj = {};
-      items.forEach((item) => {
-        const menuId = item.menu?.id ?? item.menu_id ?? item.id;
-        const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
-        const price = item.menu?.harga ?? item.harga ?? 0;
-        const image =
-          item.menu?.foto_url ??
-          (item.foto_menu
-            ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-            : "/images/menudefault.jpg");
+        const cartObj = {};
+        items.forEach((item) => {
+          const menuId = item.menu?.id ?? item.menu_id ?? item.id;
+          const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
+          const price = item.menu?.harga ?? item.harga ?? 0;
+          const image =
+            item.menu?.foto_url ??
+            (item.foto_menu
+              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
+              : "/images/menudefault.jpg");
 
-        cartObj[menuId] = {
-          cartId: item.id,
-          id: menuId,
-          name,
-          price,
-          image,
-          qty: item.jumlah ?? 0,
-        };
-      });
+          cartObj[menuId] = {
+            cartId: item.id,
+            id: menuId,
+            name,
+            price,
+            image,
+            qty: item.jumlah ?? 0,
+          };
+        });
 
-      setCart(cartObj);
+        setCart(cartObj);
+      } catch (err) {
+        console.error("Gagal mengambil keranjang:", err);
+      }
     };
 
     fetchCart();
@@ -47,21 +51,29 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
     const cartItemId = cart[menuId]?.cartId;
     if (!cartItemId) return;
 
-    if (newQty <= 0) {
-      await Keranjang.removeItem(guest_id, cartItemId);
-      setCart((prev) => {
-        const newCart = { ...prev };
-        delete newCart[menuId];
-        return newCart;
-      });
-    } else {
-      const updated = await Keranjang.updateItem(guest_id, cartItemId, newQty);
-      if (updated) {
-        setCart((prev) => ({
-          ...prev,
-          [menuId]: { ...prev[menuId], qty: updated.jumlah },
-        }));
+    try {
+      if (newQty <= 0) {
+        await Keranjang.removeItem(guest_id, cartItemId);
+        setCart((prev) => {
+          const newCart = { ...prev };
+          delete newCart[menuId];
+          return newCart;
+        });
+      } else {
+        const updated = await Keranjang.updateItem(
+          guest_id,
+          cartItemId,
+          newQty
+        );
+        if (updated) {
+          setCart((prev) => ({
+            ...prev,
+            [menuId]: { ...prev[menuId], qty: updated.jumlah },
+          }));
+        }
       }
+    } catch (err) {
+      console.error("Gagal update keranjang:", err);
     }
   };
 
@@ -113,12 +125,16 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
               {Object.entries(cart).map(([menuId, item]) => (
                 <li key={menuId} className="flex items-center gap-3">
                   <img
-                    src={item.image}
-                    alt={item.name}
+                    src={item.image || "/images/menudefault.jpg"}
+                    alt={item.name || "Menu"}
                     className="w-14 h-14 rounded-xl object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/images/menudefault.jpg";
+                    }}
                   />
                   <div className="flex-1">
-                    <p className="font-semibold">{item.name}</p>
+                    <p className="font-semibold">{item.name || "Menu"}</p>
                     <p className="text-orange-500 text-sm">
                       Rp {(item.price ?? 0).toLocaleString("id-ID")}
                     </p>

@@ -19,9 +19,9 @@ export default function OrderConfirmation() {
   const formatRupiah = (value) => value.toLocaleString("id-ID");
 
   const items = Object.values(cart);
-  const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
+  const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
   const totalPrice = items.reduce(
-    (sum, item) => sum + item.price * item.qty,
+    (sum, item) => sum + (item.price || 0) * (item.qty || 0),
     0
   );
 
@@ -38,14 +38,16 @@ export default function OrderConfirmation() {
         if (res?.length > 0) {
           const mapped = {};
           res.forEach((item) => {
+            const image = item.foto_menu
+              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
+              : "/images/menudefault.jpg";
+
             mapped[item.id] = {
               id: item.id,
-              name: item.nama_menu,
-              price: item.harga,
-              qty: item.jumlah,
-              image: item.foto_menu
-                ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-                : "/images/menudefault.jpg",
+              name: item.nama_menu || "Menu",
+              price: item.harga || 0,
+              qty: item.jumlah || 0,
+              image,
               kiosId: item.kios_id,
             };
           });
@@ -72,16 +74,21 @@ export default function OrderConfirmation() {
     try {
       const guest_id = localStorage.getItem("guest_id");
       if (!guest_id) return;
-      await Keranjang.updateItem(guest_id, id, newQty);
-      setCart((prev) => {
-        const updated = { ...prev };
-        if (newQty <= 0) {
+
+      if (newQty <= 0) {
+        await Keranjang.removeItem(guest_id, id);
+        setCart((prev) => {
+          const updated = { ...prev };
           delete updated[id];
-        } else {
-          updated[id] = { ...updated[id], qty: newQty };
-        }
-        return updated;
-      });
+          return updated;
+        });
+      } else {
+        await Keranjang.updateItem(guest_id, id, newQty);
+        setCart((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], qty: newQty },
+        }));
+      }
     } catch (err) {
       console.error("Gagal update keranjang:", err);
     }
@@ -91,7 +98,6 @@ export default function OrderConfirmation() {
     return <div className="p-6 text-center">Memuat keranjang...</div>;
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
 
-  // Memetakan nilai state 'deliveryType' ke nilai yang dimengerti oleh API.
   const apiDeliveryType =
     deliveryType === "pesanAntar" ? "diantar" : "ambil_sendiri";
 
@@ -160,20 +166,24 @@ export default function OrderConfirmation() {
               items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 mb-3">
                   <img
-                    src={item.image}
-                    alt={item.name}
+                    src={item.image || "/images/menudefault.jpg"}
+                    alt={item.name || "Menu"}
                     className="w-20 h-20 object-cover rounded"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/images/menudefault.jpg";
+                    }}
                   />
                   <div className="flex-1">
                     <h3 className="font-bold text-black text-base lg:text-lg">
-                      {item.name}
+                      {item.name || "Menu"}
                     </h3>
                     <p className="text-primary font-semibold">
-                      Rp. {formatRupiah(item.price)}
+                      Rp. {formatRupiah(item.price || 0)}
                     </p>
                   </div>
                   <QuantityControl
-                    qty={item.qty}
+                    qty={item.qty || 0}
                     setQty={(newQty) => updateQty(item.id, newQty)}
                   />
                 </div>
@@ -198,7 +208,7 @@ export default function OrderConfirmation() {
             deliveryType={apiDeliveryType}
             qty={totalQty}
             kiosId={kiosId}
-            totalPrice={totalPrice} 
+            totalPrice={totalPrice}
           />
         </div>
       </div>

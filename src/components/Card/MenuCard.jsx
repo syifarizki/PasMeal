@@ -6,6 +6,7 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
   const navigate = useNavigate();
 
   const goToDetail = () => {
+    if (!item.isAvailable) return;
     navigate(`/DetailMenuPage/${item.id}`);
   };
 
@@ -24,18 +25,24 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
       }`}
     >
       <div
-        onClick={isButtonDisabled ? null : goToDetail}
-        className="cursor-pointer"
+        onClick={goToDetail}
+        className={`cursor-pointer ${
+          isButtonDisabled ? "pointer-events-none" : ""
+        }`}
       >
         <img
-          src={item.image}
-          alt={item.name}
+          src={item.image || "/images/menudefault.jpg"}
+          alt={item.name || "Menu"}
           className="w-full h-28 object-cover rounded-sm"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = "/images/menudefault.jpg";
+          }}
         />
         <div className="p-3 flex flex-col items-center">
-          <h4 className="mt-2 text-base font-bold">{item.name}</h4>
+          <h4 className="mt-2 text-base font-bold">{item.name || "Menu"}</h4>
           <p className="text-base text-primary">
-            Rp. {item.price.toLocaleString("id-ID")}
+            Rp. {(item.price ?? 0).toLocaleString("id-ID")}
           </p>
         </div>
       </div>
@@ -45,14 +52,12 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (!isButtonDisabled) {
-                addToCart(item.id);
-              }
+              if (!isButtonDisabled) addToCart(item.id);
             }}
-            disabled={isButtonDisabled} 
+            disabled={isButtonDisabled}
             className={`mt-2 rounded-xl md:rounded-lg px-3 py-1 text-xs md:text-base font-semibold w-full cursor-pointer
               bg-primary text-white
-              ${isButtonDisabled ? "cursor-not-allowed" : ""}`} 
+              ${isButtonDisabled ? "cursor-not-allowed" : ""}`}
           >
             Tambah Keranjang
           </button>
@@ -61,7 +66,6 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
             onClick={(e) => e.stopPropagation()}
             className="mt-2 flex justify-center"
           >
-            {/* Tampilkan QuantityControl hanya jika menu tersedia */}
             {item.isAvailable ? (
               <QuantityControl qty={qty} setQty={handleSetQty} />
             ) : (

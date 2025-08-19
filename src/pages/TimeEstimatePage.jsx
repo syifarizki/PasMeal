@@ -18,7 +18,6 @@ export default function TimeEstimatePage() {
   const [orderStatus, setOrderStatus] = useState("processing");
   const [progress, setProgress] = useState(0);
 
-  // Format Rupiah lebih standar
   const formatRupiah = (angka) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -26,6 +25,7 @@ export default function TimeEstimatePage() {
       minimumFractionDigits: 0,
     }).format(angka || 0);
 
+  // fetch pesanan
   useEffect(() => {
     const fetchPesanan = async () => {
       setLoading(true);
@@ -42,19 +42,15 @@ export default function TimeEstimatePage() {
           return;
         }
 
-        // Ambil detail pesanan utama
         const detailPesanan = await Pesanan.getPesananDetail(
           pesananId,
           guestId
         );
 
-        if (!detailPesanan) {
-          throw new Error("Detail pesanan tidak ditemukan.");
-        }
+        if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
 
         let pesananLengkap = { ...detailPesanan };
 
-        // Ambil detail kios jika ada kios_id
         if (detailPesanan.kios_id) {
           const detailKios = await Kios.getById(detailPesanan.kios_id);
           pesananLengkap.kios = detailKios;
@@ -62,13 +58,10 @@ export default function TimeEstimatePage() {
 
         setPesanan(pesananLengkap);
 
-        // Atur status dan progress
         const status =
           pesananLengkap.status === "done" ? "completed" : "processing";
         setOrderStatus(status);
-        if (status === "completed") {
-          setProgress(100);
-        }
+        if (status === "completed") setProgress(100);
       } catch (err) {
         console.error("Gagal mengambil data pesanan:", err);
         setPesanan(null);
@@ -80,7 +73,22 @@ export default function TimeEstimatePage() {
     fetchPesanan();
   }, [location.state]);
 
+  // auto hapus data setelah 10 menit pesanan selesai
+  useEffect(() => {
+    let autoClearTimer;
+    if (orderStatus === "completed") {
+      autoClearTimer = setTimeout(() => {
+        localStorage.removeItem("guest_id");
+        localStorage.removeItem("order_finished");
+        navigate("/"); // otomatis kembali ke beranda
+      }, 10 * 60 * 1000); 
+    }
+    return () => clearTimeout(autoClearTimer);
+  }, [orderStatus, navigate]);
+
   const handlePesanLagi = () => {
+    localStorage.removeItem("guest_id");
+    localStorage.removeItem("order_finished");
     navigate("/");
   };
 
@@ -131,7 +139,6 @@ export default function TimeEstimatePage() {
       {/* Progress Pesanan */}
       <div className="flex flex-col w-full">
         <div className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 mt-4 md:mt-6 md:px-8 lg:px-20">
-          {/* Proses */}
           <div className="flex flex-col items-center">
             <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 bg-primary border-primary text-white">
               <FaArrowRotateLeft className="text-lg md:text-xl" />
@@ -141,17 +148,15 @@ export default function TimeEstimatePage() {
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div className="flex-1 relative -mt-6">
             <div className="h-2 bg-gray-300 rounded-full w-full">
               <div
                 className="h-2 transition-all duration-500 rounded-full bg-primary"
                 style={{ width: `${progress}%` }}
-              ></div>
+              />
             </div>
           </div>
 
-          {/* Selesai */}
           <div className="flex flex-col items-center">
             <div
               className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-300 ${
@@ -179,7 +184,6 @@ export default function TimeEstimatePage() {
         <div className="lg:w-1/2 mb-8 lg:mb-0">
           <h2 className="font-bold text-xl mb-4 lg:-mt-2">Ringkasan Pesanan</h2>
 
-          {/* Delivery & Timer */}
           <div className="flex justify-between items-center mb-4">
             <div className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium">
               {pesanan.tipe_pengantaran === "diantar"
@@ -201,7 +205,6 @@ export default function TimeEstimatePage() {
             </div>
           </div>
 
-          {/* Nama Kios */}
           <div className="flex items-center gap-2 font-medium p-2 border border-gray-200 rounded-lg w-full mb-4">
             <BiStore className="w-6 h-6 text-gray-700" />
             <span className="text-gray-700">
@@ -209,7 +212,6 @@ export default function TimeEstimatePage() {
             </span>
           </div>
 
-          {/* List Pesanan */}
           <div className="border border-gray-200 rounded-md p-3 mb-4 w-full">
             <div className="mb-3 text-gray-700">
               <span className="font-medium">Pesanan:</span>
@@ -228,43 +230,45 @@ export default function TimeEstimatePage() {
                           }`
                         : "/images/menudefault.jpg"
                     }
-                    alt={item.nama_menu}
+                    alt={item.nama_menu || "Menu"}
                     className="w-16 h-16 object-cover rounded"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/images/menudefault.jpg";
+                    }}
                   />
                   <span className="font-bold text-base">
-                    {item.nama_menu} x{item.jumlah}
+                    {item.nama_menu || "Menu"} x{item.jumlah || 1}
                   </span>
                 </div>
                 <span className="text-primary font-semibold">
-                  {formatRupiah(item.harga * item.jumlah)}
+                  {formatRupiah((item.harga || 0) * (item.jumlah || 1))}
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Data Pembeli */}
         <div className="lg:w-1/2 mt-4 mb-10">
           <OrderForm
             deliveryType={pesanan.tipe_pengantaran}
             qty={totalQty}
             showPayButton={false}
             initialData={{
-              nama_pemesan: pesanan.nama_pemesan,
-              no_hp: pesanan.no_hp,
-              catatan: pesanan.catatan,
-              diantar_ke: pesanan.diantar_ke,
+              nama_pemesan: pesanan.nama_pemesan || "",
+              no_hp: pesanan.no_hp || "",
+              catatan: pesanan.catatan || "",
+              diantar_ke: pesanan.diantar_ke || "",
             }}
           />
         </div>
       </div>
 
-      {/* Button Pesan Lagi */}
       <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] lg:w-[500px]">
         <PrimaryButton
           text="Pesan Lagi"
           onClick={handlePesanLagi}
-          disabled={!isOrderCompleted} 
+          disabled={!isOrderCompleted}
           className="w-full text-lg font-medium shadow-lg"
         />
       </div>
