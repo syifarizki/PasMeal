@@ -48,4 +48,14 @@ export const Kios = {
       return null;
     }
   },
+    searchAll: async (query) => {
+    try {
+      const res = await axios.get(`${API_URL}/api/search?query=${query}`);
+      return res.data || { kios: [], menus: [] };
+    } catch (err) {
+      console.error("Gagal search all:", err);
+      return { kios: [], menus: [] };
+}
+},
+
 };

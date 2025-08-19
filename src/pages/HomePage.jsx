@@ -19,19 +19,41 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
     (acc, item) => acc + item.qty,
     0
   );
+useEffect(() => {
+  const fetchKios = async () => {
+    setLoading(true);
 
-  useEffect(() => {
-    const fetchKios = async () => {
+    if (search.trim() !== "") {
+      // Ambil semua kios (supaya bisa tampil semua)
+      const allKios = await Kios.getAll();
+
+      // Ambil hasil search menu
+      const result = await Kios.searchAll(search);
+
+      // Ambil semua kiosId dari menu yang match
+      const kiosIdsFromMenu = [
+        ...new Set(result.menus.map((menu) => menu.kios_id)),
+      ];
+
+      // Gabungkan kios yang namanya match search dan kios dari menu
+      const kiosToShow = allKios.filter(
+        (kios) =>
+          kiosIdsFromMenu.includes(kios.id) ||
+          kios.nama_kios.toLowerCase().includes(search.toLowerCase())
+      );
+
+      setKiosList(kiosToShow);
+    } else {
       const data = await Kios.getHomepage();
       setKiosList(data);
-      setLoading(false);
-    };
-    fetchKios();
-  }, []);
+    }
 
-  const filteredKios = kiosList.filter((kios) =>
-    kios.nama_kios?.toLowerCase().includes(search.toLowerCase())
-  );
+    setLoading(false);
+  };
+
+  fetchKios();
+}, [search]);
+
 
   return (
     <div className="bg-gray-100 font-sans overflow-x-hidden">
@@ -51,7 +73,7 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
           <SearchBar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari Menu..."
+            placeholder="Cari kios atau menu..."
           />
           <CartButton
             totalCartItems={totalCartItems}
@@ -85,14 +107,14 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
               <p className="text-gray-500 col-span-full text-center">
                 Loading kios...
               </p>
-            ) : filteredKios.length > 0 ? (
-              filteredKios.map((kios) => (
+            ) : kiosList.length > 0 ? (
+              kiosList.map((kios) => (
                 <KiosCard
                   key={kios.id || kios._id}
                   kiosId={kios.id || kios._id}
                   name={kios.nama_kios}
                   description={kios.deskripsi}
-                  gambar_kios={kios.gambar_kios} 
+                  gambar_kios={kios.gambar_kios}
                 />
               ))
             ) : (
