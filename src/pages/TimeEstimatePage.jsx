@@ -81,7 +81,7 @@ export default function TimeEstimatePage() {
         localStorage.removeItem("guest_id");
         localStorage.removeItem("order_finished");
         navigate("/"); // otomatis kembali ke beranda
-      }, 10 * 60 * 1000); 
+      }, 10 * 60 * 1000);
     }
     return () => clearTimeout(autoClearTimer);
   }, [orderStatus, navigate]);
@@ -186,8 +186,9 @@ export default function TimeEstimatePage() {
 
           <div className="flex justify-between items-center mb-4">
             <div className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium">
+              {/* ===== PERUBAHAN PERTAMA DI SINI ===== */}
               {pesanan.tipe_pengantaran === "diantar"
-                ? "Diantar"
+                ? "Pesan Antar"
                 : "Ambil Sendiri"}
             </div>
             <div className="bg-primary text-white px-4 py-2 rounded-full text-sm md:text-base font-medium flex items-center gap-1">
@@ -258,7 +259,11 @@ export default function TimeEstimatePage() {
               nama_pemesan: pesanan.nama_pemesan || "",
               no_hp: pesanan.no_hp || "",
               catatan: pesanan.catatan || "",
-              diantar_ke: pesanan.diantar_ke || "",
+              // ===== PERUBAHAN KEDUA DI SINI =====
+              diantar_ke:
+                pesanan.tipe_pengantaran === "diantar"
+                  ? "Pesan Antar"
+                  : "Ambil Sendiri",
             }}
           />
         </div>
