@@ -7,8 +7,8 @@ import CartButton from "../components/CartButton";
 import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
 import { Keranjang } from "../services/Keranjang";
+import { useCart } from "../context/CartContext";
 
-// untuk menampilkan semua menu dan hasil search
 const mapApiToMenuState = (apiData) => ({
   id: apiData.id,
   name: apiData.nama_menu,
@@ -19,25 +19,15 @@ const mapApiToMenuState = (apiData) => ({
     : "/images/menudefault.jpg",
 });
 
-export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
+export default function MenuPage() {
   const { kiosId } = useParams();
   const [kios, setKios] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isCartInitialized, setIsCartInitialized] = useState(false);
 
-  // konsisten pakai guest_id
-  const [guestId] = useState(() => {
-    let id = localStorage.getItem("guest_id");
-    if (!id) {
-      id = `guest-${Date.now()}`;
-      localStorage.setItem("guest_id", id);
-    }
-    return id;
-  });
+  const { cart, setCart, showCart, setShowCart, guest_id } = useCart();
 
-  // fetch kios & menu
   useEffect(() => {
     const fetchKiosAndMenus = async () => {
       if (!kiosId) return;
@@ -47,7 +37,6 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
           Kios.getById(kiosId),
           Kios.getMenusByKios(kiosId, searchTerm),
         ]);
-
         setKios(kiosData);
         setMenuItems(menuData.map(mapApiToMenuState));
       } catch (err) {
@@ -56,73 +45,32 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
         setLoading(false);
       }
     };
-
     const handler = setTimeout(fetchKiosAndMenus, 300);
     return () => clearTimeout(handler);
   }, [kiosId, searchTerm]);
 
-  // fetch keranjang awal
-  useEffect(() => {
-    const fetchInitialCart = async () => {
-      if (guestId && Object.keys(cart).length === 0 && !isCartInitialized) {
-        try {
-          const keranjangData = await Keranjang.getKeranjang(guestId);
-          if (keranjangData && keranjangData.length > 0) {
-            const mappedCart = keranjangData.reduce((acc, item) => {
-              const menuId = item.menu_id ?? item.menu?.id;
-              if (menuId) {
-                acc[menuId] = {
-                  cartId: item.id,
-                  id: menuId,
-                  name: item.menu?.nama ?? item.nama_menu ?? "Menu",
-                  price: item.menu?.harga ?? item.harga ?? 0,
-                  image:
-                    item.menu?.foto_url ??
-                    (item.foto_menu
-                      ? `${import.meta.env.VITE_API_URL}/uploads/${
-                          item.foto_menu
-                        }`
-                      : "/images/menudefault.jpg"),
-                  qty: item.jumlah ?? 0,
-                };
-              }
-              return acc;
-            }, {});
-            setCart(mappedCart);
-          }
-        } catch (err) {
-          console.error("Gagal mengambil keranjang:", err);
-        } finally {
-          setIsCartInitialized(true);
-        }
-      } else if (!isCartInitialized) {
-        setIsCartInitialized(true);
-      }
-    };
-
-    fetchInitialCart();
-  }, [guestId, cart, setCart, isCartInitialized]);
-
-  // tambah item ke cart
   const addToCart = async (id) => {
+    if (!guest_id) return;
     const item = menuItems.find((menu) => menu.id === id);
     if (!item || !item.isAvailable) return;
 
     const existingCartItem = cart[id];
     if (!existingCartItem) {
       try {
-        const res = await Keranjang.addItem(guestId, id, 1);
-        setCart((prev) => ({
-          ...prev,
-          [id]: { ...item, qty: 1, cartId: res.id },
-        }));
+        const res = await Keranjang.addItem(guest_id, id, 1);
+        if (res?.id) {
+          setCart((prev) => ({
+            ...prev,
+            [id]: { ...item, qty: 1, cartId: res.id },
+          }));
+        }
       } catch (err) {
         console.error("Gagal tambah ke keranjang:", err);
       }
     } else {
       const newQty = existingCartItem.qty + 1;
       try {
-        await Keranjang.updateItem(guestId, existingCartItem.cartId, newQty);
+        await Keranjang.updateItem(guest_id, existingCartItem.cartId, newQty);
         setCart((prev) => ({
           ...prev,
           [id]: { ...prev[id], qty: newQty },
@@ -133,15 +81,15 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
     }
   };
 
-  // kurangi qty / hapus item
   const decreaseQty = async (id) => {
+    if (!guest_id) return;
     const existingCartItem = cart[id];
     if (!existingCartItem) return;
 
     const newQty = existingCartItem.qty - 1;
     if (newQty <= 0) {
       try {
-        await Keranjang.removeItem(guestId, existingCartItem.cartId);
+        await Keranjang.removeItem(guest_id, existingCartItem.cartId);
         setCart((prev) => {
           const newCart = { ...prev };
           delete newCart[id];
@@ -152,7 +100,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
       }
     } else {
       try {
-        await Keranjang.updateItem(guestId, existingCartItem.cartId, newQty);
+        await Keranjang.updateItem(guest_id, existingCartItem.cartId, newQty);
         setCart((prev) => ({
           ...prev,
           [id]: { ...prev[id], qty: newQty },
@@ -170,14 +118,7 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
-      {showCart && (
-        <Cart
-          guestId={guestId}
-          cart={cart}
-          setCart={setCart}
-          onClose={() => setShowCart(false)}
-        />
-      )}
+      {showCart && <Cart onClose={() => setShowCart(false)} />}
       <HeaderMenu kios={kios} />
       <div className="mx-auto px-5 md:px-15 pt-20">
         <div className="flex items-center mb-6">
@@ -210,8 +151,8 @@ export default function MenuPage({ cart, setCart, showCart, setShowCart }) {
                 key={item.id}
                 item={item}
                 qty={cart[item.id]?.qty || 0}
-                addToCart={() => addToCart(item.id)}
-                decreaseQty={() => decreaseQty(item.id)}
+                addToCart={addToCart}
+                decreaseQty={decreaseQty}
               />
             ))}
           </div>

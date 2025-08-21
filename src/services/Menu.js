@@ -14,7 +14,7 @@ export const Menu = {
 
   getMenuById: async (id) => {
     try {
-      const res = await axios.get(`${API_URL}/api/menu/${id}`);
+      const res = await axios.get(`${API_URL}/api/menu/buyer/${id}`);
       const data = res.data;
       return {
         id: parseInt(id),

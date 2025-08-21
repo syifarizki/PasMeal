@@ -5,8 +5,10 @@ import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
 import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
+import { useCart } from "../context/CartContext"; // ⬅️ import hook context
 
-export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
+export default function KiosPage() {
+  const { cart, setCart, showCart, setShowCart } = useCart(); // ⬅️ ambil dari context
   const [search, setSearch] = useState("");
   const [kiosList, setKiosList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +17,7 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
     (acc, item) => acc + item.qty,
     0
   );
+
   useEffect(() => {
     const handler = setTimeout(() => {
       const fetchKios = async () => {
@@ -25,9 +28,8 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
       };
       fetchKios();
     }, 500);
-    return () => {
-      clearTimeout(handler);
-    };
+
+    return () => clearTimeout(handler);
   }, [search]);
 
   return (
@@ -40,6 +42,7 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
           onClose={() => setShowCart(false)}
         />
       )}
+
       <div className="relative z-10 px-4 md:px-10 py-6 -mt-10 rounded-t-[30px] bg-white flex flex-col">
         <div className="flex items-center gap-3 mb-6 -mt-10 md:-mt-15 w-full">
           <SearchBar
@@ -74,7 +77,6 @@ export default function KiosPage({ cart, setCart, showCart, setShowCart }) {
               ))}
             </div>
           ) : (
-      
             <p className="text-gray-500 col-span-full text-center">
               {search
                 ? `Kios dengan nama "${search}" tidak ditemukan`

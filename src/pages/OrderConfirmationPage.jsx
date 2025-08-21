@@ -4,17 +4,18 @@ import { FiArrowLeft } from "react-icons/fi";
 import { BiStore } from "react-icons/bi";
 import OrderForm from "../components/OrderForm";
 import QuantityControl from "../components/QuantityControl";
-import { Keranjang } from "../services/Keranjang";
+import { useCart } from "../context/CartContext";
 import { Kios } from "../services/Kios";
 
 export default function OrderConfirmation() {
   const [deliveryType, setDeliveryType] = useState("pesanAntar");
-  const [cart, setCart] = useState({});
   const [kiosName, setKiosName] = useState("");
   const [kiosId, setKiosId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const navigate = useNavigate();
+  const { cart, updateQty, removeItem, fetchCart } = useCart();
 
   const formatRupiah = (value) => value.toLocaleString("id-ID");
 
@@ -26,39 +27,16 @@ export default function OrderConfirmation() {
   );
 
   useEffect(() => {
-    const fetchCart = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const guest_id = localStorage.getItem("guest_id");
-        if (!guest_id) {
-          setError("Guest ID tidak ditemukan. Silakan kembali ke beranda.");
-          return;
-        }
-        const res = await Keranjang.getKeranjang(guest_id);
-        if (res?.length > 0) {
-          const mapped = {};
-          res.forEach((item) => {
-            const image = item.foto_menu
-              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-              : "/images/menudefault.jpg";
+        await fetchCart();
 
-            mapped[item.id] = {
-              id: item.id,
-              name: item.nama_menu || "Menu",
-              price: item.harga || 0,
-              qty: item.jumlah || 0,
-              image,
-              kiosId: item.kios_id,
-            };
-          });
-          setCart(mapped);
-
-          const firstItem = Object.values(mapped)[0];
-          if (firstItem) {
-            const kiosRes = await Kios.getById(firstItem.kiosId);
-            setKiosId(firstItem.kiosId);
-            setKiosName(kiosRes?.nama_kios || "Nama Kios Tidak Ditemukan");
-          }
+        const firstItem = items[0];
+        if (firstItem?.kiosId) {
+          const kiosRes = await Kios.getById(firstItem.kiosId);
+          setKiosId(firstItem.kiosId);
+          setKiosName(kiosRes?.nama_kios || "Nama Kios Tidak Ditemukan");
         }
       } catch (err) {
         console.error("Gagal ambil keranjang:", err);
@@ -67,32 +45,9 @@ export default function OrderConfirmation() {
         setLoading(false);
       }
     };
-    fetchCart();
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const updateQty = async (id, newQty) => {
-    try {
-      const guest_id = localStorage.getItem("guest_id");
-      if (!guest_id) return;
-
-      if (newQty <= 0) {
-        await Keranjang.removeItem(guest_id, id);
-        setCart((prev) => {
-          const updated = { ...prev };
-          delete updated[id];
-          return updated;
-        });
-      } else {
-        await Keranjang.updateItem(guest_id, id, newQty);
-        setCart((prev) => ({
-          ...prev,
-          [id]: { ...prev[id], qty: newQty },
-        }));
-      }
-    } catch (err) {
-      console.error("Gagal update keranjang:", err);
-    }
-  };
 
   if (loading)
     return <div className="p-6 text-center">Memuat keranjang...</div>;
@@ -184,7 +139,13 @@ export default function OrderConfirmation() {
                   </div>
                   <QuantityControl
                     qty={item.qty || 0}
-                    setQty={(newQty) => updateQty(item.id, newQty)}
+                    setQty={(newQty) => {
+                      if (newQty <= 0) {
+                        removeItem(item.id);
+                      } else {
+                        updateQty(item.id, newQty);
+                      }
+                    }}
                   />
                 </div>
               ))

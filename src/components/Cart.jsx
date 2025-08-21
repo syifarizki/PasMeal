@@ -3,79 +3,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QuantityControl from "./QuantityControl";
 import PrimaryButton from "./PrimaryButton";
-import { Keranjang } from "../services/Keranjang";
+import { useCart } from "../context/CartContext";
 
-export default function Cart({ guest_id, cart, setCart, onClose }) {
+export default function Cart({ onClose }) {
+  const { cart, updateQty, removeItem, guest_id } = useCart();
   const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
-
-  // Load cart dari API
-  useEffect(() => {
-    const fetchCart = async () => {
-      if (!guest_id) return;
-      try {
-        const items = await Keranjang.getKeranjang(guest_id);
-
-        const cartObj = {};
-        items.forEach((item) => {
-          const menuId = item.menu?.id ?? item.menu_id ?? item.id;
-          const name = item.menu?.nama ?? item.nama_menu ?? "Menu";
-          const price = item.menu?.harga ?? item.harga ?? 0;
-          const image =
-            item.menu?.foto_url ??
-            (item.foto_menu
-              ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-              : "/images/menudefault.jpg");
-
-          cartObj[menuId] = {
-            cartId: item.id,
-            id: menuId,
-            name,
-            price,
-            image,
-            qty: item.jumlah ?? 0,
-          };
-        });
-
-        setCart(cartObj);
-      } catch (err) {
-        console.error("Gagal mengambil keranjang:", err);
-      }
-    };
-
-    fetchCart();
-  }, [guest_id, setCart]);
-
-  // Update qty
-  const updateCartQty = async (menuId, newQty) => {
-    const cartItemId = cart[menuId]?.cartId;
-    if (!cartItemId) return;
-
-    try {
-      if (newQty <= 0) {
-        await Keranjang.removeItem(guest_id, cartItemId);
-        setCart((prev) => {
-          const newCart = { ...prev };
-          delete newCart[menuId];
-          return newCart;
-        });
-      } else {
-        const updated = await Keranjang.updateItem(
-          guest_id,
-          cartItemId,
-          newQty
-        );
-        if (updated) {
-          setCart((prev) => ({
-            ...prev,
-            [menuId]: { ...prev[menuId], qty: updated.jumlah },
-          }));
-        }
-      }
-    } catch (err) {
-      console.error("Gagal update keranjang:", err);
-    }
-  };
 
   const total = Object.values(cart).reduce(
     (acc, item) => acc + (item.price ?? 0) * (item.qty ?? 0),
@@ -83,16 +16,18 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
   );
 
   const handleCheckout = () => {
+    onClose();
     navigate("/OrderConfirmationPage");
   };
 
-  // Responsive check
   useEffect(() => {
     const checkScreen = () => setIsDesktop(window.innerWidth >= 1024);
     checkScreen();
     window.addEventListener("resize", checkScreen);
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
+
+  if (!guest_id) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex lg:justify-end">
@@ -105,7 +40,6 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
             : "w-full fixed bottom-0 rounded-t-2xl animate-slideInUp"
         }`}
       >
-        {/* Header */}
         <div className="relative flex items-center justify-center px-4 py-4 border-b">
           <h2 className="font-bold text-lg">Keranjang Saya</h2>
           <button
@@ -116,7 +50,6 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
           </button>
         </div>
 
-        {/* Isi keranjang */}
         <div className="flex-1 overflow-y-auto p-4 mb-3">
           {Object.keys(cart).length === 0 ? (
             <p className="text-gray-500">Keranjang kosong</p>
@@ -142,7 +75,10 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
 
                   <QuantityControl
                     qty={item.qty}
-                    setQty={(newQty) => updateCartQty(menuId, newQty)}
+                    setQty={(newQty) => {
+                      if (newQty <= 0) removeItem(menuId);
+                      else updateQty(menuId, newQty);
+                    }}
                   />
                 </li>
               ))}
@@ -150,7 +86,6 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="p-4 shadow-2xl shadow-black">
           <div className="flex justify-between font-semibold mb-3">
             <span>Total Harga</span>
@@ -168,21 +103,12 @@ export default function Cart({ guest_id, cart, setCart, onClose }) {
         </div>
       </div>
 
-      {/* Animasi */}
-      <style>
-        {`
-          @keyframes slideInUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-          }
-          @keyframes slideInRight {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-          }
-          .animate-slideInUp { animation: slideInUp 0.3s ease-out forwards; }
-          .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
-        `}
-      </style>
+      <style>{`
+        @keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-slideInUp { animation: slideInUp 0.3s ease-out forwards; }
+        .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
+      `}</style>
     </div>
   );
 }

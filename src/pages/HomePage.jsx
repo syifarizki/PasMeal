@@ -8,8 +8,10 @@ import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
 import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
+import { useCart } from "../context/CartContext"; // ⬅️ import context
 
-export default function HomePage({ cart, setCart, showCart, setShowCart }) {
+export default function HomePage() {
+  const { cart, setCart, showCart, setShowCart } = useCart(); // ⬅️ ambil dari context
   const [search, setSearch] = useState("");
   const [kiosList, setKiosList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,41 +21,36 @@ export default function HomePage({ cart, setCart, showCart, setShowCart }) {
     (acc, item) => acc + item.qty,
     0
   );
-useEffect(() => {
-  const fetchKios = async () => {
-    setLoading(true);
 
-    if (search.trim() !== "") {
-      // Ambil semua kios (supaya bisa tampil semua)
-      const allKios = await Kios.getAll();
+  useEffect(() => {
+    const fetchKios = async () => {
+      setLoading(true);
 
-      // Ambil hasil search menu
-      const result = await Kios.searchAll(search);
+      if (search.trim() !== "") {
+        const allKios = await Kios.getAll();
+        const result = await Kios.searchAll(search);
 
-      // Ambil semua kiosId dari menu yang match
-      const kiosIdsFromMenu = [
-        ...new Set(result.menus.map((menu) => menu.kios_id)),
-      ];
+        const kiosIdsFromMenu = [
+          ...new Set(result.menus.map((menu) => menu.kios_id)),
+        ];
 
-      // Gabungkan kios yang namanya match search dan kios dari menu
-      const kiosToShow = allKios.filter(
-        (kios) =>
-          kiosIdsFromMenu.includes(kios.id) ||
-          kios.nama_kios.toLowerCase().includes(search.toLowerCase())
-      );
+        const kiosToShow = allKios.filter(
+          (kios) =>
+            kiosIdsFromMenu.includes(kios.id) ||
+            kios.nama_kios.toLowerCase().includes(search.toLowerCase())
+        );
 
-      setKiosList(kiosToShow);
-    } else {
-      const data = await Kios.getHomepage();
-      setKiosList(data);
-    }
+        setKiosList(kiosToShow);
+      } else {
+        const data = await Kios.getHomepage();
+        setKiosList(data);
+      }
 
-    setLoading(false);
-  };
+      setLoading(false);
+    };
 
-  fetchKios();
-}, [search]);
-
+    fetchKios();
+  }, [search]);
 
   return (
     <div className="bg-gray-100 font-sans overflow-x-hidden">

@@ -1,16 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; 
 
-export default function Timer({ minutes, onFinish, onProgress }) {
-  const storageKey = "order_end_time";
-  const finishedKey = "order_finished"; 
+export default function Timer({ minutes, onFinish, onProgress, orderId }) {
+  const storageKey = useMemo(() => `order_end_time_${orderId}`, [orderId]);
+  const finishedKey = useMemo(() => `order_finished_${orderId}`, [orderId]);
 
-  // hitung sisa waktu dari localStorage kalau ada
   const getInitialTimeLeft = () => {
     const savedEndTime = localStorage.getItem(storageKey);
     const isFinished = localStorage.getItem(finishedKey);
 
     if (isFinished === "true") {
-      return 0; 
+      return 0;
     }
 
     if (savedEndTime) {
@@ -23,9 +22,9 @@ export default function Timer({ minutes, onFinish, onProgress }) {
   const [timeLeft, setTimeLeft] = useState(getInitialTimeLeft);
 
   useEffect(() => {
-    const isFinished = localStorage.getItem(finishedKey);
+    if (!orderId) return;
 
-    // kalo udah selesai timernya janagn di ulang lagi
+    const isFinished = localStorage.getItem(finishedKey);
     if (isFinished === "true") {
       setTimeLeft(0);
       onFinish?.();
@@ -33,8 +32,6 @@ export default function Timer({ minutes, onFinish, onProgress }) {
     }
 
     let savedEndTime = localStorage.getItem(storageKey);
-
-    // kalau belum ada endTime, buat baru
     if (!savedEndTime) {
       const newEndTime = Date.now() + minutes * 60 * 1000;
       localStorage.setItem(storageKey, newEndTime);
@@ -49,16 +46,19 @@ export default function Timer({ minutes, onFinish, onProgress }) {
         setTimeLeft(0);
         onFinish?.();
         localStorage.removeItem(storageKey);
-        localStorage.setItem(finishedKey, "true"); 
+        localStorage.setItem(finishedKey, "true");
       } else {
         setTimeLeft(remaining);
-        const progress = ((minutes * 60 - remaining) / (minutes * 60)) * 100;
-        onProgress?.(progress);
+        if (onProgress) {
+          const totalDuration = minutes * 60;
+          const progress = ((totalDuration - remaining) / totalDuration) * 100;
+          onProgress(progress);
+        }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [minutes, onFinish, onProgress]);
+  }, [minutes, onFinish, onProgress, orderId, storageKey, finishedKey]);
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
