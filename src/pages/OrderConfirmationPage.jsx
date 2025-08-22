@@ -6,6 +6,8 @@ import OrderForm from "../components/OrderForm";
 import QuantityControl from "../components/QuantityControl";
 import { useCart } from "../context/CartContext";
 import { Kios } from "../services/Kios";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function OrderConfirmation() {
   const [deliveryType, setDeliveryType] = useState("pesanAntar");
@@ -120,7 +122,7 @@ export default function OrderConfirmation() {
             {items.length > 0 ? (
               items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 mb-3">
-                  <img
+                  <LazyLoadImage
                     src={item.image || "/images/menudefault.jpg"}
                     alt={item.name || "Menu"}
                     className="w-20 h-20 object-cover rounded"
@@ -128,6 +130,7 @@ export default function OrderConfirmation() {
                       e.target.onerror = null;
                       e.target.src = "/images/menudefault.jpg";
                     }}
+                    effect="blur"
                   />
                   <div className="flex-1">
                     <h3 className="font-bold text-black text-base lg:text-lg">

@@ -1,5 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function KiosCard({
   kiosId,
@@ -16,16 +18,16 @@ export default function KiosCard({
 
   const imgSrc = gambar_kios
     ? gambar_kios.startsWith("http")
-      ? gambar_kios 
+      ? gambar_kios
       : `${import.meta.env.VITE_API_URL}/uploads/${gambar_kios}`
     : "/images/menudefault.jpg";
 
-
   return (
     <div className="bg-white p-3 rounded-lg border border-gray-300 flex gap-4 items-center shadow-sm transition hover:shadow-md">
-      <img
+      <LazyLoadImage
         src={imgSrc}
         alt={name}
+        effect="blur" 
         onError={(e) => {
           e.target.onerror = null;
           e.target.src = "/images/menudefault.jpg";

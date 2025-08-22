@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import QuantityControl from "./QuantityControl";
 import PrimaryButton from "./PrimaryButton";
 import { useCart } from "../context/CartContext";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function Cart({ onClose }) {
   const { cart, updateQty, removeItem, guest_id } = useCart();
@@ -30,7 +32,7 @@ export default function Cart({ onClose }) {
   if (!guest_id) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex lg:justify-end">
+    <div className="fixed inset-0 z-60 flex lg:justify-end">
       <div className="flex-1 bg-black/50" onClick={onClose}></div>
 
       <div
@@ -57,14 +59,16 @@ export default function Cart({ onClose }) {
             <ul className="space-y-4">
               {Object.entries(cart).map(([menuId, item]) => (
                 <li key={menuId} className="flex items-center gap-3">
-                  <img
+                  <LazyLoadImage
                     src={item.image || "/images/menudefault.jpg"}
                     alt={item.name || "Menu"}
-                    className="w-14 h-14 rounded-xl object-cover"
+                    effect="blur"
+                    placeholderSrc="/images/menudefault.jpg"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = "/images/menudefault.jpg";
                     }}
+                    className="w-14 h-14 rounded-xl object-cover"
                   />
                   <div className="flex-1">
                     <p className="font-semibold">{item.name || "Menu"}</p>

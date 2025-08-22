@@ -4,6 +4,8 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { ImSpoonKnife } from "react-icons/im";
 import { Menu } from "../services/Menu";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function NewMenuSlider() {
   const [newMenus, setNewMenus] = useState([]);
@@ -73,8 +75,8 @@ export default function NewMenuSlider() {
       <Slider {...sliderSettings}>
         {newMenus.map((menu, index) => (
           <div key={index} className="px-2">
-            <div className="bg-white rounded-lg shadow p-3 text-center">
-              <img
+            <div className="bg-white rounded-lg shadow p-2 text-center">
+              <LazyLoadImage
                 src={
                   menu.foto_menu
                     ? `${import.meta.env.VITE_API_URL}/uploads/${
@@ -83,15 +85,16 @@ export default function NewMenuSlider() {
                     : "/images/menudefault.jpg"
                 }
                 alt={menu.nama_menu}
+                effect="blur"
                 onError={(e) => {
                   e.target.src = "/images/menudefault.jpg";
                 }}
-                className="w-full h-24 object-cover rounded-md"
+                className="w-full aspect-video object-cover rounded-sm"
               />
               <div className="mt-2 text-lg md:text-xl font-bold">
                 {menu.nama_menu}
               </div>
-              <div className="text-lg md:text-xl  text-primary">
+              <div className="text-lg md:text-xl text-primary">
                 Rp. {Number(menu.harga).toLocaleString("id-ID")}
               </div>
             </div>

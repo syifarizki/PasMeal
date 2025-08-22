@@ -1,6 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import QuantityControl from "../QuantityControl";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css"; 
 
 export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
   const navigate = useNavigate();
@@ -30,10 +32,11 @@ export default function MenuCard({ item, qty = 0, addToCart, decreaseQty }) {
           isButtonDisabled ? "pointer-events-none" : ""
         }`}
       >
-        <img
+        <LazyLoadImage
           src={item.image || "/images/menudefault.jpg"}
           alt={item.name || "Menu"}
-          className="w-full h-28 object-cover rounded-sm"
+          className="w-full aspect-video object-cover rounded-sm"
+          effect="blur" 
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = "/images/menudefault.jpg";

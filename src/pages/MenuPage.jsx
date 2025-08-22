@@ -121,7 +121,7 @@ export default function MenuPage() {
       {showCart && <Cart onClose={() => setShowCart(false)} />}
       <HeaderMenu kios={kios} />
       <div className="mx-auto px-5 md:px-15 pt-20">
-        <div className="sticky top-0 z-50 flex items-center mb-6 ">
+        <div className="sticky top-5 z-50 flex items-center mb-6 ">
           <div className="flex-1">
             <SearchBar
               placeholder="Cari Menu.."

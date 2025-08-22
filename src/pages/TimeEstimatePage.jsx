@@ -9,6 +9,8 @@ import { Pesanan } from "../services/Pesanan";
 import { Kios } from "../services/Kios";
 import Timer from "../components/Timer";
 import PrimaryButton from "../components/PrimaryButton";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function TimeEstimatePage() {
   const navigate = useNavigate();
@@ -19,13 +21,10 @@ export default function TimeEstimatePage() {
   const [progress, setProgress] = useState(0);
   const [guestId, setGuestId] = useState(null);
 
-  // Ambil guestId & cek apakah pesanan sudah selesai
   useEffect(() => {
     const storedGuestId = localStorage.getItem("guest_id");
     if (storedGuestId) {
       setGuestId(storedGuestId);
-
-      // Cek status selesai di localStorage
       const finishedKey = `order_finished_${storedGuestId}`;
       const isFinished = localStorage.getItem(finishedKey);
       if (isFinished) {
@@ -46,22 +45,17 @@ export default function TimeEstimatePage() {
 
   const handleOrderCompletion = useCallback(() => {
     if (orderStatus === "completed" || !guestId) return;
-
     const timerKey = `order_end_time_${guestId}`;
     const finishedKey = `order_finished_${guestId}`;
-
     localStorage.removeItem(timerKey);
-    localStorage.setItem(finishedKey, "true"); // tandai selesai
-
+    localStorage.setItem(finishedKey, "true");
     setOrderStatus("completed");
     setProgress(100);
   }, [orderStatus, guestId]);
 
-  // Ambil data pesanan awal
   useEffect(() => {
     const fetchPesanan = async () => {
       if (!guestId) return;
-
       setLoading(true);
       try {
         const pesananId = location.state?.pesananId;
@@ -70,20 +64,17 @@ export default function TimeEstimatePage() {
           setLoading(false);
           return;
         }
-
         const detailPesanan = await Pesanan.getPesananDetail(
           pesananId,
           guestId
         );
         if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
-
         let pesananLengkap = { ...detailPesanan };
         if (detailPesanan.kios_id) {
           const detailKios = await Kios.getById(detailPesanan.kios_id);
           pesananLengkap.kios = detailKios;
         }
         setPesanan(pesananLengkap);
-
         if (detailPesanan.status === "done") {
           handleOrderCompletion();
         } else {
@@ -99,7 +90,6 @@ export default function TimeEstimatePage() {
     fetchPesanan();
   }, [location.state, handleOrderCompletion, guestId]);
 
-  // Polling status pesanan
   useEffect(() => {
     if (orderStatus === "processing" && pesanan?.id && guestId) {
       const intervalId = setInterval(async () => {
@@ -119,7 +109,6 @@ export default function TimeEstimatePage() {
     }
   }, [orderStatus, pesanan?.id, guestId, handleOrderCompletion]);
 
-  // Bersihkan sesi setelah 10 menit selesai
   useEffect(() => {
     let autoClearTimer;
     if (orderStatus === "completed") {
@@ -134,7 +123,6 @@ export default function TimeEstimatePage() {
     return () => clearTimeout(autoClearTimer);
   }, [orderStatus, navigate, guestId]);
 
-  // Event Handlers
   const handlePesanLagi = () => {
     localStorage.removeItem("guest_id");
     if (guestId) {
@@ -271,7 +259,7 @@ export default function TimeEstimatePage() {
                 className="flex items-center justify-between mb-3"
               >
                 <div className="flex items-center gap-3">
-                  <img
+                  <LazyLoadImage
                     src={
                       item.foto_menu
                         ? `${import.meta.env.VITE_API_URL}/uploads/${
@@ -285,6 +273,7 @@ export default function TimeEstimatePage() {
                       e.target.onerror = null;
                       e.target.src = "/images/menudefault.jpg";
                     }}
+                    effect="blur"
                   />
                   <span className="font-bold text-base">
                     {item.nama_menu || "Menu"} x{item.jumlah || 1}
@@ -316,13 +305,15 @@ export default function TimeEstimatePage() {
       </div>
 
       {/* Action Button */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] lg:w-[500px]">
-        <PrimaryButton
-          text="Pesan Lagi"
-          onClick={handlePesanLagi}
-          disabled={!isOrderCompleted}
-          className="w-full text-lg font-medium shadow-lg"
-        />
+      <div className="pb-24 lg:pb-4">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[90%] lg:w-[500px]">
+          <PrimaryButton
+            text="Pesan Lagi"
+            onClick={handlePesanLagi}
+            disabled={!isOrderCompleted}
+            className="w-full text-lg font-medium shadow-lg"
+          />
+        </div>
       </div>
     </div>
   );

@@ -6,7 +6,9 @@ import Cart from "../components/Cart";
 import { Menu } from "../services/Menu";
 import { Keranjang } from "../services/Keranjang";
 import QuantityControl from "../components/QuantityControl";
-import { useCart } from "../context/CartContext"; 
+import { useCart } from "../context/CartContext";
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function DetailMenuPage() {
   const { id } = useParams();
@@ -15,10 +17,8 @@ export default function DetailMenuPage() {
   const [menu, setMenu] = useState(null);
   const [qty, setQty] = useState(0);
 
-  // Ambil dari context
   const { cart, setCart, showCart, setShowCart, guest_id } = useCart();
 
-  // Fetch detail menu
   useEffect(() => {
     const fetchMenu = async () => {
       try {
@@ -38,12 +38,10 @@ export default function DetailMenuPage() {
     setQty(cartItem ? cartItem.qty : 0);
   }, [cart, id]);
 
-  // 🔥 handleQuantityChange pakai context
   const handleQuantityChange = useCallback(
     async (newQty) => {
-      if (!menu || !guest_id) return; // ⬅️ ganti guestId → guest_id
+      if (!menu || !guest_id) return;
       const cartItem = cart[id];
-
       try {
         if (!cartItem && newQty > 0) {
           const res = await Keranjang.addItem(guest_id, menu.id, newQty);
@@ -91,7 +89,7 @@ export default function DetailMenuPage() {
         alert("Terjadi kesalahan saat memproses keranjang Anda.");
       }
     },
-    [id, menu, guest_id, cart, setCart] // ⬅️ ganti guestId → guest_id
+    [id, menu, guest_id, cart, setCart]
   );
 
   const totalCartItems = Object.values(cart || {}).reduce(
@@ -124,11 +122,12 @@ export default function DetailMenuPage() {
       {/* MOBILE & TABLET */}
       <div className="lg:hidden">
         <div className="relative w-full h-72 md:h-[300px]">
-          <img
+          <LazyLoadImage
             src={menu.image || "/images/menudefault.jpg"}
             alt={menu.name}
             className="w-full h-full object-cover"
             onError={handleImageError}
+            effect="blur"
           />
           <button
             onClick={handleGoBack}
@@ -195,11 +194,12 @@ export default function DetailMenuPage() {
         <div className="flex-1 flex p-10 pl-16">
           <div className="flex flex-row gap-x-10">
             <div>
-              <img
+              <LazyLoadImage
                 src={menu.image || "/images/menudefault.jpg"}
                 alt={menu.name}
                 className="w-88 h-88 object-cover rounded-lg shadow-lg"
                 onError={handleImageError}
+                effect="blur"
               />
             </div>
             <div className="flex flex-col">
