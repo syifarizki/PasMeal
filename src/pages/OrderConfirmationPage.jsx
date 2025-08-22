@@ -11,7 +11,7 @@ import "react-lazy-load-image-component/src/effects/blur.css";
 
 export default function OrderConfirmation() {
   const [deliveryType, setDeliveryType] = useState("pesanAntar");
-  const [kiosName, setKiosName] = useState("");
+  const [kiosName, setKiosName] = useState("Memuat...");
   const [kiosId, setKiosId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,18 +28,12 @@ export default function OrderConfirmation() {
     0
   );
 
+  // 1. Ambil cart
   useEffect(() => {
-    const loadData = async () => {
+    const loadCart = async () => {
       try {
         setLoading(true);
         await fetchCart();
-
-        const firstItem = items[0];
-        if (firstItem?.kiosId) {
-          const kiosRes = await Kios.getById(firstItem.kiosId);
-          setKiosId(firstItem.kiosId);
-          setKiosName(kiosRes?.nama_kios || "Nama Kios Tidak Ditemukan");
-        }
       } catch (err) {
         console.error("Gagal ambil keranjang:", err);
         setError("Gagal memuat keranjang. Coba muat ulang halaman.");
@@ -47,9 +41,26 @@ export default function OrderConfirmation() {
         setLoading(false);
       }
     };
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadCart();
   }, []);
+
+  useEffect(() => {
+    const fetchKios = async () => {
+      if (items.length > 0 && items[0].kiosId) {
+        try {
+          const kiosRes = await Kios.getById(items[0].kiosId);
+          setKiosId(items[0].kiosId);
+          setKiosName(kiosRes?.nama_kios || "Nama Kios Tidak Ditemukan");
+        } catch (err) {
+          console.error("Gagal ambil detail kios:", err);
+          setKiosName("Nama Kios Tidak Ditemukan");
+        }
+      } else {
+        setKiosName("Keranjang Kosong");
+      }
+    };
+    fetchKios();
+  }, [items]);
 
   if (loading)
     return <div className="p-6 text-center">Memuat keranjang...</div>;
@@ -108,7 +119,7 @@ export default function OrderConfirmation() {
             <div className="flex justify-between items-center mb-3 text-gray-700">
               <div className="flex items-center gap-2 font-medium">
                 <BiStore className="w-6 h-6" />
-                <span>{kiosName}</span>
+                <span className="uppercase">{kiosName}</span>
               </div>
               <button
                 className="text-primary text-base cursor-pointer"
@@ -173,7 +184,7 @@ export default function OrderConfirmation() {
             qty={totalQty}
             kiosId={kiosId}
             totalPrice={totalPrice}
-            items={items} 
+            items={items}
           />
         </div>
       </div>

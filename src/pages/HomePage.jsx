@@ -66,7 +66,7 @@ export default function HomePage() {
 
       <div className="relative z-10 px-4 md:px-10 pt-8 pb-5 -mt-10 rounded-t-[30px] bg-white flex flex-col">
         {/* Search Bar */}
-        <div className="sticky top-4 z-50  flex items-center gap-3 w-full  mb-6 -mt-12 md:-mt-15 ">
+        <div className=" flex items-center gap-3 w-full  mb-6 -mt-12 md:-mt-15 ">
           <SearchBar
             value={search}
             onChange={(e) => setSearch(e.target.value)}

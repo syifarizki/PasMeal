@@ -7,12 +7,10 @@ import { BiStore } from "react-icons/bi";
 import OrderForm from "../components/OrderForm";
 import { Pesanan } from "../services/Pesanan";
 import { Kios } from "../services/Kios";
-import Timer from "../components/Timer"; 
+import Timer from "../components/Timer";
 import PrimaryButton from "../components/PrimaryButton";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
-
-
 
 export default function TimeEstimatePage() {
   const navigate = useNavigate();
@@ -23,14 +21,18 @@ export default function TimeEstimatePage() {
   const [progress, setProgress] = useState(0);
   const [guestId, setGuestId] = useState(null);
 
-  
   const [totalDuration, setTotalDuration] = useState(0);
+  const [startTime, setStartTime] = useState(null);
 
+  // Cek guest_id
   useEffect(() => {
     const storedGuestId = localStorage.getItem("guest_id");
-    if (storedGuestId) setGuestId(storedGuestId);
-    else console.error("Guest ID tidak ditemukan di localStorage.");
-  }, []);
+    if (storedGuestId) {
+      setGuestId(storedGuestId);
+    } else {
+      navigate("/"); // kalau ga ada guest_id redirect langsung
+    }
+  }, [navigate]);
 
   const formatRupiah = (angka) =>
     new Intl.NumberFormat("id-ID", {
@@ -43,7 +45,7 @@ export default function TimeEstimatePage() {
     if (orderStatus === "completed") return;
     setOrderStatus("completed");
     setProgress(100);
-    setTotalDuration(0); 
+    setTotalDuration(0);
   }, [orderStatus]);
 
   const fetchPesanan = useCallback(async () => {
@@ -53,8 +55,8 @@ export default function TimeEstimatePage() {
       const pesananId =
         location.state?.pesananId || localStorage.getItem("last_pesanan_id");
       if (!pesananId) {
-        console.error("Pesanan ID tidak ditemukan");
         setLoading(false);
+        navigate("/");
         return;
       }
 
@@ -63,7 +65,6 @@ export default function TimeEstimatePage() {
       const detailPesanan = await Pesanan.getPesananDetail(pesananId, guestId);
       if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
 
-     
       if (detailPesanan.kios_id) {
         const detailKios = await Kios.getById(detailPesanan.kios_id);
         detailPesanan.kios = detailKios;
@@ -75,7 +76,10 @@ export default function TimeEstimatePage() {
         handleOrderCompletion();
       } else {
         setOrderStatus("processing");
-    
+
+        // ambil startTime dari backend
+        setStartTime(detailPesanan.created_at);
+
         const totalWaktuAntreanMenit = (detailPesanan.antrean || []).reduce(
           (sum, item) => sum + (item.sisaWaktu || 0),
           0
@@ -92,7 +96,7 @@ export default function TimeEstimatePage() {
     } finally {
       setLoading(false);
     }
-  }, [guestId, location.state, handleOrderCompletion]);
+  }, [guestId, location.state, handleOrderCompletion, navigate]);
 
   useEffect(() => {
     if (guestId) {
@@ -100,30 +104,31 @@ export default function TimeEstimatePage() {
     }
   }, [guestId, fetchPesanan]);
 
+  // Auto refresh data tiap 10 detik
   useEffect(() => {
     if (orderStatus === "processing" && guestId) {
-      const intervalId = setInterval(fetchPesanan, 10000); 
+      const intervalId = setInterval(fetchPesanan, 10000);
       return () => clearInterval(intervalId);
     }
   }, [orderStatus, guestId, fetchPesanan]);
 
+  // Kalau status completed → auto clear setelah 10 menit
   useEffect(() => {
-    let autoClearTimer;
     if (orderStatus === "completed") {
-      autoClearTimer = setTimeout(() => {
+      const autoClearTimer = setTimeout(() => {
         localStorage.removeItem("guest_id");
         localStorage.removeItem("last_pesanan_id");
-        if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
         navigate("/");
       }, 10 * 60 * 1000);
-    }
-    return () => clearTimeout(autoClearTimer);
-  }, [orderStatus, navigate, guestId]);
 
+      return () => clearTimeout(autoClearTimer);
+    }
+  }, [orderStatus, navigate]);
+
+  // Pesan lagi → clear langsung
   const handlePesanLagi = () => {
     localStorage.removeItem("guest_id");
     localStorage.removeItem("last_pesanan_id");
-    if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
     navigate("/");
   };
 
@@ -148,6 +153,7 @@ export default function TimeEstimatePage() {
 
   return (
     <div className="bg-white">
+      {/* Header */}
       <header
         className="p-6 text-white font-bold text-lg flex items-center justify-center md:justify-start"
         style={{
@@ -159,7 +165,7 @@ export default function TimeEstimatePage() {
         <h1 className="text-xl lg:text-2xl">Status Pesananmu</h1>
       </header>
 
-      {/* Progress Bar */}
+      {/* Progress */}
       <div className="flex flex-col w-full">
         <div className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 mt-4 md:mt-6 md:px-8 lg:px-20">
           <div className="flex flex-col items-center">
@@ -217,6 +223,7 @@ export default function TimeEstimatePage() {
               ) : (
                 <Timer
                   durationInSeconds={totalDuration}
+                  startTime={startTime}
                   onFinish={handleOrderCompletion}
                   onProgress={setProgress}
                 />
@@ -226,7 +233,7 @@ export default function TimeEstimatePage() {
 
           <div className="flex items-center gap-2 font-medium p-2 border border-gray-200 rounded-lg w-full mb-4">
             <BiStore className="w-6 h-6 text-gray-700" />
-            <span className="text-gray-700">
+            <span className="text-gray-700 uppercase">
               {pesanan.kios?.nama_kios || "Nama Kios"}
             </span>
           </div>

@@ -10,15 +10,27 @@ export function CartProvider({ children }) {
   const [showCart, setShowCart] = useState(false);
   const [guest_id, setGuestId] = useState(null);
 
-  // --- Generate guest_id ---
+  // --- Pastikan selalu ada guest_id ---
   useEffect(() => {
-    let currentGuestId = localStorage.getItem("guest_id");
-    if (!currentGuestId) {
-      currentGuestId = `guest-${Date.now()}`;
-      localStorage.setItem("guest_id", currentGuestId);
-    }
-    setGuestId(currentGuestId);
-  }, []);
+    const ensureGuestId = () => {
+      let gid = localStorage.getItem("guest_id");
+      if (!gid) {
+        gid = `guest-${Date.now()}`;
+        localStorage.setItem("guest_id", gid);
+        setGuestId(gid);
+      } else if (gid !== guest_id) {
+        setGuestId(gid);
+      }
+    };
+
+    // cek pertama kali
+    ensureGuestId();
+
+    // monitor perubahan localStorage setiap detik
+    const interval = setInterval(ensureGuestId, 1000);
+
+    return () => clearInterval(interval);
+  }, [guest_id]);
 
   // --- Fetch Cart dari backend ---
   const fetchCart = async () => {
@@ -84,7 +96,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  // Load cart pertama kali
+  // --- Load cart pertama kali ---
   useEffect(() => {
     if (guest_id) fetchCart();
   }, [guest_id]);

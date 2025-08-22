@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 
-export default function Timer({ durationInSeconds, onFinish, onProgress }) {
-  const [timeLeft, setTimeLeft] = useState(durationInSeconds);
+export default function Timer({
+  durationInSeconds,
+  startTime,
+  onFinish,
+  onProgress,
+}) {
+  // Hitung waktu selesai = waktu mulai + durasi
+  const endTime = startTime
+    ? new Date(startTime).getTime() + durationInSeconds * 1000
+    : Date.now() + durationInSeconds * 1000;
 
-  useEffect(() => {
-    setTimeLeft(durationInSeconds);
-  }, [durationInSeconds]);
+  const [timeLeft, setTimeLeft] = useState(
+    Math.max(0, Math.floor((endTime - Date.now()) / 1000))
+  );
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -14,26 +22,26 @@ export default function Timer({ durationInSeconds, onFinish, onProgress }) {
     }
 
     const intervalId = setInterval(() => {
-      setTimeLeft((prevTime) => {
-        const newTime = prevTime - 1;
-        if (onProgress && durationInSeconds > 0) {
-          const progress =
-            ((durationInSeconds - newTime) / durationInSeconds) * 100;
-          onProgress(Math.min(100, progress)); 
-        }
+      const newTime = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
 
-        if (newTime <= 0) {
-          clearInterval(intervalId);
-          onFinish?.();
-          return 0;
-        }
+      setTimeLeft(newTime);
 
-        return newTime;
-      });
+      // progress bar (opsional)
+      if (onProgress && durationInSeconds > 0) {
+        const progress =
+          ((durationInSeconds - newTime) / durationInSeconds) * 100;
+        onProgress(Math.min(100, progress));
+      }
+
+      // selesai
+      if (newTime <= 0) {
+        clearInterval(intervalId);
+        onFinish?.();
+      }
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [timeLeft, durationInSeconds, onFinish, onProgress]);
+  }, [endTime, durationInSeconds, onFinish, onProgress]);
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
