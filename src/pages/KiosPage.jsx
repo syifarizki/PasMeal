@@ -44,7 +44,7 @@ export default function KiosPage() {
       )}
 
       <div className="relative z-10 px-4 md:px-10 py-6 -mt-10 rounded-t-[30px] bg-white flex flex-col">
-        <div className="flex items-center gap-3 mb-6 -mt-10 md:-mt-15 w-full">
+        <div className="sticky top-0 z-50 flex items-center gap-3 mb-6 -mt-10 md:-mt-15 w-full">
           <SearchBar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
