@@ -7,10 +7,12 @@ import { BiStore } from "react-icons/bi";
 import OrderForm from "../components/OrderForm";
 import { Pesanan } from "../services/Pesanan";
 import { Kios } from "../services/Kios";
-import Timer from "../components/Timer";
+import Timer from "../components/Timer"; 
 import PrimaryButton from "../components/PrimaryButton";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
+
+
 
 export default function TimeEstimatePage() {
   const navigate = useNavigate();
@@ -20,6 +22,9 @@ export default function TimeEstimatePage() {
   const [orderStatus, setOrderStatus] = useState("processing");
   const [progress, setProgress] = useState(0);
   const [guestId, setGuestId] = useState(null);
+
+  
+  const [totalDuration, setTotalDuration] = useState(0);
 
   useEffect(() => {
     const storedGuestId = localStorage.getItem("guest_id");
@@ -35,78 +40,79 @@ export default function TimeEstimatePage() {
     }).format(angka || 0);
 
   const handleOrderCompletion = useCallback(() => {
-    if (orderStatus === "completed" || !guestId) return;
-    const timerKey = `order_end_time_${guestId}`;
-    const finishedKey = `order_finished_${guestId}`;
-    localStorage.removeItem(timerKey);
-    localStorage.setItem(finishedKey, "true");
+    if (orderStatus === "completed") return;
     setOrderStatus("completed");
     setProgress(100);
-  }, [orderStatus, guestId]);
+    setTotalDuration(0); 
+  }, [orderStatus]);
 
-  // Fetch pesanan dari backend
-  useEffect(() => {
-    const fetchPesanan = async () => {
-      if (!guestId) return;
-      setLoading(true);
-      try {
-        const pesananId = location.state?.pesananId;
-        if (!pesananId) return;
+  const fetchPesanan = useCallback(async () => {
+    if (!guestId) return;
 
-        const detailPesanan = await Pesanan.getPesananDetail(
-          pesananId,
-          guestId
-        );
-        if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
-
-        // Ambil data kios
-        if (detailPesanan.kios_id) {
-          const detailKios = await Kios.getById(detailPesanan.kios_id);
-          detailPesanan.kios = detailKios;
-        }
-
-        // Ambil antrean dari backend
-        detailPesanan.antrean = detailPesanan.antrean || []; // array [{id, sisaWaktu}]
-
-        setPesanan(detailPesanan);
-
-        if (detailPesanan.status === "done") handleOrderCompletion();
-        else setOrderStatus("processing");
-      } catch (err) {
-        console.error("Gagal mengambil data pesanan:", err);
-        setPesanan(null);
-      } finally {
+    try {
+      const pesananId =
+        location.state?.pesananId || localStorage.getItem("last_pesanan_id");
+      if (!pesananId) {
+        console.error("Pesanan ID tidak ditemukan");
         setLoading(false);
+        return;
       }
-    };
 
-    fetchPesanan();
-  }, [location.state, guestId, handleOrderCompletion]);
+      localStorage.setItem("last_pesanan_id", pesananId);
 
-  // Polling status pesanan setiap 5 detik
+      const detailPesanan = await Pesanan.getPesananDetail(pesananId, guestId);
+      if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
+
+     
+      if (detailPesanan.kios_id) {
+        const detailKios = await Kios.getById(detailPesanan.kios_id);
+        detailPesanan.kios = detailKios;
+      }
+
+      setPesanan(detailPesanan);
+
+      if (detailPesanan.status === "done") {
+        handleOrderCompletion();
+      } else {
+        setOrderStatus("processing");
+    
+        const totalWaktuAntreanMenit = (detailPesanan.antrean || []).reduce(
+          (sum, item) => sum + (item.sisaWaktu || 0),
+          0
+        );
+
+        const totalEstimasiMenit =
+          (detailPesanan.total_estimasi || 0) + totalWaktuAntreanMenit;
+
+        setTotalDuration(Math.max(0, Math.ceil(totalEstimasiMenit * 60)));
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data pesanan:", err);
+      setPesanan(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [guestId, location.state, handleOrderCompletion]);
+
   useEffect(() => {
-    if (orderStatus === "processing" && pesanan?.id && guestId) {
-      const intervalId = setInterval(async () => {
-        try {
-          const latestPesanan = await Pesanan.getPesananDetail(
-            pesanan.id,
-            guestId
-          );
-          if (latestPesanan?.status === "done") handleOrderCompletion();
-        } catch (error) {
-          console.error("Polling status gagal:", error);
-        }
-      }, 5000);
+    if (guestId) {
+      fetchPesanan();
+    }
+  }, [guestId, fetchPesanan]);
+
+  useEffect(() => {
+    if (orderStatus === "processing" && guestId) {
+      const intervalId = setInterval(fetchPesanan, 10000); 
       return () => clearInterval(intervalId);
     }
-  }, [orderStatus, pesanan?.id, guestId, handleOrderCompletion]);
+  }, [orderStatus, guestId, fetchPesanan]);
 
-  // Auto-clear guestId & redirect setelah 10 menit
   useEffect(() => {
     let autoClearTimer;
     if (orderStatus === "completed") {
       autoClearTimer = setTimeout(() => {
         localStorage.removeItem("guest_id");
+        localStorage.removeItem("last_pesanan_id");
         if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
         navigate("/");
       }, 10 * 60 * 1000);
@@ -116,18 +122,10 @@ export default function TimeEstimatePage() {
 
   const handlePesanLagi = () => {
     localStorage.removeItem("guest_id");
+    localStorage.removeItem("last_pesanan_id");
     if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
     navigate("/");
   };
-
-  const handleTimerFinish = useCallback(
-    () => handleOrderCompletion(),
-    [handleOrderCompletion]
-  );
-  const handleProgressUpdate = useCallback(
-    (newProgress) => setProgress(newProgress),
-    []
-  );
 
   if (loading) return <div className="p-6 text-center">Memuat pesanan...</div>;
   if (!pesanan)
@@ -217,15 +215,11 @@ export default function TimeEstimatePage() {
               {isOrderCompleted ? (
                 <span className="font-semibold">Selesai</span>
               ) : (
-                guestId && (
-                  <Timer
-                    baseMinutes={pesanan.estimasi_waktu || 5} // dari backend
-                    orderId={guestId}
-                    antrean={pesanan.antrean || []} // backend
-                    onFinish={handleTimerFinish}
-                    onProgress={handleProgressUpdate}
-                  />
-                )
+                <Timer
+                  durationInSeconds={totalDuration}
+                  onFinish={handleOrderCompletion}
+                  onProgress={setProgress}
+                />
               )}
             </div>
           </div>
