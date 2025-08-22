@@ -23,18 +23,9 @@ export default function TimeEstimatePage() {
 
   useEffect(() => {
     const storedGuestId = localStorage.getItem("guest_id");
-    if (storedGuestId) {
-      setGuestId(storedGuestId);
-      const finishedKey = `order_finished_${storedGuestId}`;
-      const isFinished = localStorage.getItem(finishedKey);
-      if (isFinished) {
-        setOrderStatus("completed");
-        setProgress(100);
-      }
-    } else {
-      console.error("Guest ID tidak ditemukan di localStorage.");
-    }
-  }, [navigate]);
+    if (storedGuestId) setGuestId(storedGuestId);
+    else console.error("Guest ID tidak ditemukan di localStorage.");
+  }, []);
 
   const formatRupiah = (angka) =>
     new Intl.NumberFormat("id-ID", {
@@ -53,33 +44,34 @@ export default function TimeEstimatePage() {
     setProgress(100);
   }, [orderStatus, guestId]);
 
+  // Fetch pesanan dari backend
   useEffect(() => {
     const fetchPesanan = async () => {
       if (!guestId) return;
       setLoading(true);
       try {
         const pesananId = location.state?.pesananId;
-        if (!pesananId) {
-          console.error("Pesanan ID tidak ditemukan di location state.");
-          setLoading(false);
-          return;
-        }
+        if (!pesananId) return;
+
         const detailPesanan = await Pesanan.getPesananDetail(
           pesananId,
           guestId
         );
         if (!detailPesanan) throw new Error("Detail pesanan tidak ditemukan.");
-        let pesananLengkap = { ...detailPesanan };
+
+        // Ambil data kios
         if (detailPesanan.kios_id) {
           const detailKios = await Kios.getById(detailPesanan.kios_id);
-          pesananLengkap.kios = detailKios;
+          detailPesanan.kios = detailKios;
         }
-        setPesanan(pesananLengkap);
-        if (detailPesanan.status === "done") {
-          handleOrderCompletion();
-        } else {
-          setOrderStatus("processing");
-        }
+
+        // Ambil antrean dari backend
+        detailPesanan.antrean = detailPesanan.antrean || []; // array [{id, sisaWaktu}]
+
+        setPesanan(detailPesanan);
+
+        if (detailPesanan.status === "done") handleOrderCompletion();
+        else setOrderStatus("processing");
       } catch (err) {
         console.error("Gagal mengambil data pesanan:", err);
         setPesanan(null);
@@ -87,9 +79,11 @@ export default function TimeEstimatePage() {
         setLoading(false);
       }
     };
-    fetchPesanan();
-  }, [location.state, handleOrderCompletion, guestId]);
 
+    fetchPesanan();
+  }, [location.state, guestId, handleOrderCompletion]);
+
+  // Polling status pesanan setiap 5 detik
   useEffect(() => {
     if (orderStatus === "processing" && pesanan?.id && guestId) {
       const intervalId = setInterval(async () => {
@@ -98,9 +92,7 @@ export default function TimeEstimatePage() {
             pesanan.id,
             guestId
           );
-          if (latestPesanan && latestPesanan.status === "done") {
-            handleOrderCompletion();
-          }
+          if (latestPesanan?.status === "done") handleOrderCompletion();
         } catch (error) {
           console.error("Polling status gagal:", error);
         }
@@ -109,14 +101,13 @@ export default function TimeEstimatePage() {
     }
   }, [orderStatus, pesanan?.id, guestId, handleOrderCompletion]);
 
+  // Auto-clear guestId & redirect setelah 10 menit
   useEffect(() => {
     let autoClearTimer;
     if (orderStatus === "completed") {
       autoClearTimer = setTimeout(() => {
         localStorage.removeItem("guest_id");
-        if (guestId) {
-          localStorage.removeItem(`order_finished_${guestId}`);
-        }
+        if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
         navigate("/");
       }, 10 * 60 * 1000);
     }
@@ -125,25 +116,21 @@ export default function TimeEstimatePage() {
 
   const handlePesanLagi = () => {
     localStorage.removeItem("guest_id");
-    if (guestId) {
-      localStorage.removeItem(`order_finished_${guestId}`);
-    }
+    if (guestId) localStorage.removeItem(`order_finished_${guestId}`);
     navigate("/");
   };
 
-  const handleTimerFinish = useCallback(() => {
-    handleOrderCompletion();
-  }, [handleOrderCompletion]);
+  const handleTimerFinish = useCallback(
+    () => handleOrderCompletion(),
+    [handleOrderCompletion]
+  );
+  const handleProgressUpdate = useCallback(
+    (newProgress) => setProgress(newProgress),
+    []
+  );
 
-  const handleProgressUpdate = useCallback((newProgress) => {
-    setProgress(newProgress);
-  }, []);
-
-  if (loading) {
-    return <div className="p-6 text-center">Memuat pesanan...</div>;
-  }
-
-  if (!pesanan) {
+  if (loading) return <div className="p-6 text-center">Memuat pesanan...</div>;
+  if (!pesanan)
     return (
       <div className="p-6 text-center">
         <p className="text-xl font-semibold mb-4">Gagal Memuat Pesanan</p>
@@ -156,7 +143,6 @@ export default function TimeEstimatePage() {
         />
       </div>
     );
-  }
 
   const items = pesanan.items || [];
   const totalQty = items.reduce((sum, item) => sum + (item.jumlah || 1), 0);
@@ -233,22 +219,24 @@ export default function TimeEstimatePage() {
               ) : (
                 guestId && (
                   <Timer
-                    key={guestId}
-                    minutes={parseInt(pesanan.total_estimasi || 10, 10)}
+                    baseMinutes={pesanan.estimasi_waktu || 5} // dari backend
+                    orderId={guestId}
+                    antrean={pesanan.antrean || []} // backend
                     onFinish={handleTimerFinish}
                     onProgress={handleProgressUpdate}
-                    orderId={guestId}
                   />
                 )
               )}
             </div>
           </div>
+
           <div className="flex items-center gap-2 font-medium p-2 border border-gray-200 rounded-lg w-full mb-4">
             <BiStore className="w-6 h-6 text-gray-700" />
             <span className="text-gray-700">
               {pesanan.kios?.nama_kios || "Nama Kios"}
             </span>
           </div>
+
           <div className="border border-gray-200 rounded-md p-3 mb-10 w-full">
             <div className="mb-3 text-black">
               <span className="font-medium">Pesanan:</span>
@@ -286,6 +274,7 @@ export default function TimeEstimatePage() {
             ))}
           </div>
         </div>
+
         <div className="lg:w-1/2 mt-4 mb-10">
           <OrderForm
             deliveryType={pesanan.tipe_pengantaran}

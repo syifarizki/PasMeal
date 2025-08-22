@@ -16,6 +16,7 @@ export default function OrderForm({
   qty,
   kiosId,
   totalPrice,
+  items = [], // <-- pastikan items diterima sebagai prop
   showPayButton = true,
   initialData = {},
 }) {
@@ -49,18 +50,12 @@ export default function OrderForm({
     document.body.appendChild(script);
   }, []);
 
-  useEffect(() => {
-    setNama(initialData.nama_pemesan || "");
-    setNoHp(initialData.no_hp || "");
-    setCatatan(initialData.catatan || "");
-    setDiantarKe(initialData.diantar_ke || "");
-  }, []); 
-
   const isFormValid =
     qty > 0 &&
     nama.trim() &&
     noHp.trim() &&
-    (deliveryType !== "diantar" || diantarKe.trim());
+    (deliveryType !== "diantar" || diantarKe.trim()) &&
+    items.length > 0; // pastikan ada item
 
   const showNotification = (
     title,
@@ -79,17 +74,23 @@ export default function OrderForm({
     try {
       setLoading(true);
 
-      // Buat pesanan di database.
-   const payloadPesanan = {
-     guest_id: localStorage.getItem("guest_id"),
-     tipe_pengantaran: deliveryType,
-     nama_pemesan: nama.trim(),
-     no_hp: noHp.trim(),
-     catatan,
-     diantar_ke: deliveryType === "diantar" ? diantarKe.trim() : null,
-     kios_id: kiosId,
-     total_harga: totalPrice,
-   };
+      // Buat payload pesanan lengkap
+      const payloadPesanan = {
+        guest_id: localStorage.getItem("guest_id"),
+        tipe_pengantaran: deliveryType,
+        nama_pemesan: nama.trim(),
+        no_hp: noHp.trim(),
+        catatan,
+        diantar_ke: deliveryType === "diantar" ? diantarKe.trim() : null,
+        kios_id: kiosId,
+        total_harga: totalPrice,
+        items: items.map((item) => ({
+          menu_id: Number(item.id),
+          jumlah: Number(item.qty),
+        })),
+      };
+
+      console.log("Payload pesanan:", payloadPesanan);
 
       const resPesanan = await Pesanan.buatPesanan(payloadPesanan);
       const newPesananId = resPesanan.pesanan?.id;
@@ -98,12 +99,12 @@ export default function OrderForm({
         throw new Error("Gagal mendapatkan ID Pesanan dari server.");
       }
 
-      // Gunakan ID pesanan untuk membuat transaksi Midtrans.
-     const resTransaksi = await Payment.buatTransaksiMidtrans({
-       pesanan_id: newPesananId,
-       guest_id: localStorage.getItem("guest_id"),
-       total_harga: totalPrice, 
-     });
+      // Buat transaksi Midtrans
+      const resTransaksi = await Payment.buatTransaksiMidtrans({
+        pesanan_id: newPesananId,
+        guest_id: localStorage.getItem("guest_id"),
+        total_harga: totalPrice,
+      });
 
       const snapToken = resTransaksi.token;
 
@@ -111,7 +112,6 @@ export default function OrderForm({
         throw new Error("Gagal mendapatkan token pembayaran dari server.");
       }
 
-      // Buka jendela pembayaran Midtrans.
       window.snap.pay(snapToken, {
         onSuccess: () => {
           showNotification(
@@ -120,7 +120,9 @@ export default function OrderForm({
             successIcon,
             "Lanjut",
             () =>
-              navigate("/TimeEstimatePage", { state: { pesananId: newPesananId } })
+              navigate("/TimeEstimatePage", {
+                state: { pesananId: newPesananId },
+              })
           );
         },
         onPending: () =>
@@ -148,6 +150,7 @@ export default function OrderForm({
       setLoading(false);
     }
   };
+
   return (
     <>
       <form onSubmit={handleSubmit} className="md:flex-1 flex flex-col gap-6">

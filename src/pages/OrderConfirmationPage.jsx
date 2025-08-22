@@ -173,6 +173,7 @@ export default function OrderConfirmation() {
             qty={totalQty}
             kiosId={kiosId}
             totalPrice={totalPrice}
+            items={items} 
           />
         </div>
       </div>
