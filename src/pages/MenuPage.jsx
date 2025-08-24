@@ -14,10 +14,9 @@ const mapApiToMenuState = (apiData) => ({
   name: apiData.nama_menu,
   price: apiData.harga,
   isAvailable: apiData.status_tersedia,
-  image: apiData.foto_menu
-    ? `${import.meta.env.VITE_API_URL}/uploads/${apiData.foto_menu}`
-    : "/images/menudefault.jpg",
+  image: apiData.foto_menu || "/images/menudefault.jpg",
 });
+
 
 export default function MenuPage() {
   const { kiosId } = useParams();

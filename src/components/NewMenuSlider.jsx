@@ -78,10 +78,8 @@ export default function NewMenuSlider() {
             <div className="bg-white rounded-lg shadow p-2 text-center">
               <LazyLoadImage
                 src={
-                  menu.foto_menu
-                    ? `${import.meta.env.VITE_API_URL}/uploads/${
-                        menu.foto_menu
-                      }`
+                  menu.foto_menu 
+                    ? menu.foto_menu
                     : "/images/menudefault.jpg"
                 }
                 alt={menu.nama_menu}
@@ -91,6 +89,7 @@ export default function NewMenuSlider() {
                 }}
                 className="w-full aspect-video object-cover rounded-sm"
               />
+
               <div className="mt-2 text-lg md:text-xl font-bold">
                 {menu.nama_menu}
               </div>

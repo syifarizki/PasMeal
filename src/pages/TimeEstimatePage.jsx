@@ -1,14 +1,17 @@
+// TimeEstimatePage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaArrowRotateLeft } from "react-icons/fa6";
 import { IoBagCheck } from "react-icons/io5";
 import { RiTimerLine } from "react-icons/ri";
 import { BiStore } from "react-icons/bi";
+import { MdOutlineAssignment } from "react-icons/md";
 import OrderForm from "../components/OrderForm";
 import { Pesanan } from "../services/Pesanan";
 import { Kios } from "../services/Kios";
 import Timer from "../components/Timer";
 import PrimaryButton from "../components/PrimaryButton";
+import { getImageUrl } from "../../utils/imageHelper";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
 
@@ -30,7 +33,7 @@ export default function TimeEstimatePage() {
     if (storedGuestId) {
       setGuestId(storedGuestId);
     } else {
-      navigate("/"); // kalau ga ada guest_id redirect langsung
+      navigate("/");
     }
   }, [navigate]);
 
@@ -50,7 +53,6 @@ export default function TimeEstimatePage() {
 
   const fetchPesanan = useCallback(async () => {
     if (!guestId) return;
-
     try {
       const pesananId =
         location.state?.pesananId || localStorage.getItem("last_pesanan_id");
@@ -70,14 +72,22 @@ export default function TimeEstimatePage() {
         detailPesanan.kios = detailKios;
       }
 
+      // generate URL gambar lengkap untuk setiap item
+if (detailPesanan.items) {
+  detailPesanan.items = detailPesanan.items.map((item) => ({
+    ...item,
+    imageUrl: getImageUrl(item.foto_menu), // gunakan helper
+  }));
+}
+
+
+
       setPesanan(detailPesanan);
 
       if (detailPesanan.status === "done") {
         handleOrderCompletion();
       } else {
         setOrderStatus("processing");
-
-        // ambil startTime dari backend
         setStartTime(detailPesanan.created_at);
 
         const totalWaktuAntreanMenit = (detailPesanan.antrean || []).reduce(
@@ -99,12 +109,9 @@ export default function TimeEstimatePage() {
   }, [guestId, location.state, handleOrderCompletion, navigate]);
 
   useEffect(() => {
-    if (guestId) {
-      fetchPesanan();
-    }
+    if (guestId) fetchPesanan();
   }, [guestId, fetchPesanan]);
 
-  // Auto refresh data tiap 10 detik
   useEffect(() => {
     if (orderStatus === "processing" && guestId) {
       const intervalId = setInterval(fetchPesanan, 10000);
@@ -112,7 +119,6 @@ export default function TimeEstimatePage() {
     }
   }, [orderStatus, guestId, fetchPesanan]);
 
-  // Kalau status completed → auto clear setelah 10 menit
   useEffect(() => {
     if (orderStatus === "completed") {
       const autoClearTimer = setTimeout(() => {
@@ -120,12 +126,10 @@ export default function TimeEstimatePage() {
         localStorage.removeItem("last_pesanan_id");
         navigate("/");
       }, 10 * 60 * 1000);
-
       return () => clearTimeout(autoClearTimer);
     }
   }, [orderStatus, navigate]);
 
-  // Pesan lagi → clear langsung
   const handlePesanLagi = () => {
     localStorage.removeItem("guest_id");
     localStorage.removeItem("last_pesanan_id");
@@ -151,6 +155,9 @@ export default function TimeEstimatePage() {
   const totalQty = items.reduce((sum, item) => sum + (item.jumlah || 1), 0);
   const isOrderCompleted = orderStatus === "completed";
 
+  const progressLine1 = Math.min(100, progress * 2);
+  const progressLine2 = Math.max(0, (progress - 50) * 2);
+
   return (
     <div className="bg-white">
       {/* Header */}
@@ -167,35 +174,59 @@ export default function TimeEstimatePage() {
 
       {/* Progress */}
       <div className="flex flex-col w-full">
-        <div className="flex items-center justify-between w-full max-w-5xl mx-auto px-4 mt-4 md:mt-6 md:px-8 lg:px-20">
-          <div className="flex flex-col items-center">
+        <div className="flex items-center justify-center max-w-2xl md:max-w-3xl mx-auto px-4 py-6 w-full">
+          <div className="flex flex-col items-center text-center w-36">
             <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 bg-primary border-primary text-white">
-              <FaArrowRotateLeft className="text-lg md:text-xl" />
+              <MdOutlineAssignment className="text-lg md:text-xl" />
             </div>
-            <span className="mt-2 text-sm md:text-base font-semibold text-primary">
-              Pesanan Diproses
+            <span className="mt-2 text-xs md:text-sm font-semibold text-primary">
+              Menunggu Diproses
             </span>
           </div>
-          <div className="flex-1 relative -mt-6">
-            <div className="h-2 bg-gray-300 rounded-full w-full">
-              <div
-                className="h-2 transition-all duration-500 rounded-full bg-primary"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col items-center">
+          <div className="flex-1 h-1.5 mx-2 rounded-full bg-gray-200">
             <div
-              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-300 ${
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progressLine1}%` }}
+            ></div>
+          </div>
+          <div className="flex flex-col items-center text-center w-36">
+            <div
+              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-500 ${
+                progress > 0 || isOrderCompleted
+                  ? "bg-primary border-primary text-white"
+                  : "bg-gray-200 border-gray-200 text-gray-500"
+              }`}
+            >
+              <FaArrowRotateLeft className="text-lg md:text-xl" />
+            </div>
+            <span
+              className={`mt-2 text-xs md:text-sm font-semibold transition-colors duration-500 ${
+                progress > 0 || isOrderCompleted
+                  ? "text-primary"
+                  : "text-gray-500"
+              }`}
+            >
+              Sedang Diproses
+            </span>
+          </div>
+          <div className="flex-1 h-1.5 mx-2 rounded-full bg-gray-200">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progressLine2}%` }}
+            ></div>
+          </div>
+          <div className="flex flex-col items-center text-center w-36">
+            <div
+              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border-2 transition-colors duration-500 ${
                 isOrderCompleted
                   ? "bg-primary border-primary text-white"
-                  : "bg-gray-300 border-gray-300 text-gray-500"
+                  : "bg-gray-200 border-gray-200 text-gray-500"
               }`}
             >
               <IoBagCheck className="text-lg md:text-xl" />
             </div>
             <span
-              className={`mt-2 text-sm md:text-base font-semibold transition-colors duration-300 ${
+              className={`mt-2 text-xs md:text-sm font-semibold transition-colors duration-500 ${
                 isOrderCompleted ? "text-primary" : "text-gray-500"
               }`}
             >
@@ -203,7 +234,7 @@ export default function TimeEstimatePage() {
             </span>
           </div>
         </div>
-        <div className="w-full h-0.5 bg-primary mt-4"></div>
+        <div className="w-full h-0.5 bg-primary"></div>
       </div>
 
       {/* Order Details */}
@@ -249,21 +280,16 @@ export default function TimeEstimatePage() {
               >
                 <div className="flex items-center gap-3">
                   <LazyLoadImage
-                    src={
-                      item.foto_menu
-                        ? `${import.meta.env.VITE_API_URL}/uploads/${
-                            item.foto_menu
-                          }`
-                        : "/images/menudefault.jpg"
-                    }
+                    src={item.imageUrl} // jangan pakai langsung item.foto_menu
                     alt={item.nama_menu || "Menu"}
                     className="w-16 h-16 object-cover rounded"
+                    effect="blur"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = "/images/menudefault.jpg";
                     }}
-                    effect="blur"
                   />
+
                   <span className="font-bold text-base">
                     {item.nama_menu || "Menu"} x{item.jumlah || 1}
                   </span>

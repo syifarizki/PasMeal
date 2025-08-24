@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import QuantityControl from "./QuantityControl";
 import PrimaryButton from "./PrimaryButton";
 import { useCart } from "../context/CartContext";
+import { getImageUrl } from "../../utils/imageHelper";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
 
@@ -60,7 +61,7 @@ export default function Cart({ onClose }) {
               {Object.entries(cart).map(([menuId, item]) => (
                 <li key={menuId} className="flex items-center gap-3">
                   <LazyLoadImage
-                    src={item.image || "/images/menudefault.jpg"}
+                    src={getImageUrl(item.image)}
                     alt={item.name || "Menu"}
                     effect="blur"
                     placeholderSrc="/images/menudefault.jpg"

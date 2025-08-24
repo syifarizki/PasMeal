@@ -28,7 +28,7 @@ export default function OrderConfirmation() {
     0
   );
 
-  // 1. Ambil cart
+  // Ambil cart
   useEffect(() => {
     const loadCart = async () => {
       try {
@@ -44,6 +44,7 @@ export default function OrderConfirmation() {
     loadCart();
   }, []);
 
+  // Ambil kios
   useEffect(() => {
     const fetchKios = async () => {
       if (items.length > 0 && items[0].kiosId) {
@@ -130,11 +131,12 @@ export default function OrderConfirmation() {
                 Tambah Menu
               </button>
             </div>
+
             {items.length > 0 ? (
               items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 mb-3">
                   <LazyLoadImage
-                    src={item.image || "/images/menudefault.jpg"}
+                    src={item.image} // gunakan image dari cart context, bukan foto_menu
                     alt={item.name || "Menu"}
                     className="w-20 h-20 object-cover rounded"
                     onError={(e) => {
@@ -143,6 +145,7 @@ export default function OrderConfirmation() {
                     }}
                     effect="blur"
                   />
+
                   <div className="flex-1">
                     <h3 className="font-bold text-black text-base lg:text-lg">
                       {item.name || "Menu"}
@@ -169,6 +172,7 @@ export default function OrderConfirmation() {
               </div>
             )}
           </div>
+
           <div className="border border-gray-300 rounded-md p-3 text-lg flex justify-between items-center">
             <span className="font-bold">Total {totalQty} Menu:</span>
             <span className="text-primary font-semibold">

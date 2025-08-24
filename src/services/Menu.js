@@ -21,9 +21,7 @@ export const Menu = {
         name: data.nama_menu,
         description: data.deskripsi,
         price: data.harga,
-        image: data.foto_menu
-          ? `${API_URL}/uploads/${data.foto_menu}`
-          : "/images/menudefault.jpg",
+        image: data.foto_menu || "/images/menudefault.jpg",
         estimasiMenit: data.estimasi_menit || 0,
         statusTersedia:
           data.status_tersedia !== undefined ? data.status_tersedia : true,

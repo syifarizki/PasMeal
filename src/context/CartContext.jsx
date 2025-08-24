@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import { Keranjang } from "../services/Keranjang";
+import { getImageUrl } from "../../utils/imageHelper"; 
 
 const CartContext = createContext();
 
@@ -23,12 +24,8 @@ export function CartProvider({ children }) {
       }
     };
 
-    // cek pertama kali
     ensureGuestId();
-
-    // monitor perubahan localStorage setiap detik
     const interval = setInterval(ensureGuestId, 1000);
-
     return () => clearInterval(interval);
   }, [guest_id]);
 
@@ -46,9 +43,7 @@ export function CartProvider({ children }) {
               id: menuId,
               name: item.nama_menu,
               price: item.harga,
-              image: item.foto_menu
-                ? `${import.meta.env.VITE_API_URL}/uploads/${item.foto_menu}`
-                : "/images/menudefault.jpg",
+              image: getImageUrl(item.foto_menu), // FIX: pakai helper getImageUrl
               qty: item.jumlah,
               kiosId: item.kios_id,
             };

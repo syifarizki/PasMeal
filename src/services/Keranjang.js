@@ -1,5 +1,7 @@
+// Keranjang.js
 import axios from "axios";
 import { API_URL } from "./Api";
+import { getImageUrl } from "../../utils/imageHelper"; // path sesuai file-mu
 
 export const Keranjang = {
   getKeranjang: async (guest_id) => {
@@ -8,7 +10,13 @@ export const Keranjang = {
       params: { guest_id },
       headers: { "x-buyer-id": guest_id },
     });
-    return res.data;
+
+    const items = res.data.items.map((item) => ({
+      ...item,
+      image: getImageUrl(item.image),
+    }));
+
+    return { ...res.data, items };
   },
 
   addItem: async (guest_id, menu_id, jumlah = 1, catatan = "") => {
@@ -18,7 +26,10 @@ export const Keranjang = {
       jumlah,
       catatan,
     });
-    return res.data.item;
+
+    const item = res.data.item;
+    item.image = getImageUrl(item.image);
+    return item;
   },
 
   updateItem: async (guest_id, id, jumlah, catatan = "") => {
@@ -27,12 +38,15 @@ export const Keranjang = {
       jumlah,
       catatan,
     });
-    return res.data.item;
+
+    const item = res.data.item;
+    item.image = getImageUrl(item.image);
+    return item;
   },
 
   removeItem: async (guest_id, id) => {
     await axios.delete(`${API_URL}/api/keranjang/${id}`, {
-      data: { guest_id }, // pastikan guest_id dikirim di body
+      data: { guest_id },
     });
     return true;
   },
