@@ -4,23 +4,14 @@ import { FiChevronRight } from "react-icons/fi";
 import Header from "../components/Header/Header";
 import NewMenuSlider from "../components/NewMenuSlider";
 import SearchBar from "../components/SearchBar";
-import CartButton from "../components/CartButton";
 import KiosCard from "../components/Card/KiosCard";
-import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
-import { useCart } from "../context/CartContext"; // ⬅️ import context
 
 export default function HomePage() {
-  const { cart, setCart, showCart, setShowCart } = useCart(); // ⬅️ ambil dari context
   const [search, setSearch] = useState("");
   const [kiosList, setKiosList] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  const totalCartItems = Object.values(cart).reduce(
-    (acc, item) => acc + item.qty,
-    0
-  );
 
   useEffect(() => {
     const fetchKios = async () => {
@@ -56,28 +47,13 @@ export default function HomePage() {
     <div className="bg-gray-100 ">
       <Header />
 
-      {showCart && (
-        <Cart
-          cart={cart}
-          setCart={setCart}
-          onClose={() => setShowCart(false)}
-        />
-      )}
-
       <div className="relative z-10 px-4 md:px-10 pt-8 pb-5 -mt-10 rounded-t-[30px] bg-white flex flex-col">
         {/* Search Bar */}
-        <div className=" flex items-center gap-3 w-full  mb-6 -mt-12 md:-mt-15 ">
+        <div className=" flex items-center gap-3 w-full mb-6 -mt-12 md:-mt-15 ">
           <SearchBar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari kios atau menu..."
-          />
-          <CartButton
-            totalCartItems={totalCartItems}
-            iconColor="text-white"
-            badgeColor="bg-white"
-            badgeTextColor="text-primary"
-            onClick={() => setShowCart(true)}
           />
         </div>
 

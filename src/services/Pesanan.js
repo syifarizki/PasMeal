@@ -33,4 +33,22 @@ export const Pesanan = {
       throw err;
     }
   },
+
+  getStatusPesananGuest: async (pesanan_id, guest_id) => {
+    try {
+      if (!guest_id)
+        throw new Error("Guest ID wajib untuk mengambil status pesanan.");
+      // Pastikan route ini sesuai dengan yang Anda definisikan di backend
+      const res = await axios.get(
+        `${API_URL}/api/pesanan/${pesanan_id}/status?guest_id=${guest_id}`
+      );
+      return res.data;
+    } catch (err) {
+      console.error(
+        "Gagal ambil status pesanan:",
+        err.response?.data || err.message
+      );
+      throw err;
+    }
+  },
 };

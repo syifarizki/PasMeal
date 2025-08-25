@@ -8,6 +8,7 @@ import Cart from "../components/Cart";
 import { Kios } from "../services/Kios";
 import { Keranjang } from "../services/Keranjang";
 import { useCart } from "../context/CartContext";
+import Alert from "../components/Alert"; 
 
 const mapApiToMenuState = (apiData) => ({
   id: apiData.id,
@@ -17,13 +18,15 @@ const mapApiToMenuState = (apiData) => ({
   image: apiData.foto_menu || "/images/menudefault.jpg",
 });
 
-
 export default function MenuPage() {
   const { kiosId } = useParams();
   const [kios, setKios] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+
+  //  2. Tambahkan state untuk mengelola pesan alert
+  const [alertMessage, setAlertMessage] = useState(null);
 
   const { cart, setCart, showCart, setShowCart, guest_id } = useCart();
 
@@ -64,7 +67,15 @@ export default function MenuPage() {
           }));
         }
       } catch (err) {
-        console.error("Gagal tambah ke keranjang:", err);
+        //  3. Tangkap error spesifik dari backend
+        if (err.response && err.response.status === 409) {
+          setAlertMessage({
+            title: "Gagal Menambahkan Menu.",
+            text: err.response.data.message,
+          });
+        } else {
+          console.error("Gagal tambah ke keranjang:", err);
+        }
       }
     } else {
       const newQty = existingCartItem.qty + 1;
@@ -117,6 +128,13 @@ export default function MenuPage() {
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
+      {/*  4. Render Alert di sini */}
+      {alertMessage && (
+        <div className="fixed top-60 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
+          <Alert message={alertMessage} onClose={() => setAlertMessage(null)} />
+        </div>
+      )}
+
       {showCart && <Cart onClose={() => setShowCart(false)} />}
       <HeaderMenu kios={kios} />
       <div className="mx-auto px-5 md:px-15 pt-20">
