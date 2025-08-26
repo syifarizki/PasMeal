@@ -26,6 +26,11 @@ export default function OrderForm({
   const [diantarKe, setDiantarKe] = useState(initialData.diantar_ke || "");
   const [loading, setLoading] = useState(false);
   const [snapReady, setSnapReady] = useState(false);
+
+  //  simpan transaksi aktif agar bisa lanjutkan pembayaran
+  const [activePesananId, setActivePesananId] = useState(null);
+  const [activeSnapToken, setActiveSnapToken] = useState(null);
+
   const [notif, setNotif] = useState({
     show: false,
     title: "",
@@ -56,7 +61,7 @@ export default function OrderForm({
     noHp.trim() &&
     catatan.trim() &&
     (deliveryType !== "diantar" || diantarKe.trim()) &&
-    items.length > 0; 
+    items.length > 0;
 
   const showNotification = (
     title,
@@ -68,8 +73,59 @@ export default function OrderForm({
     setNotif({ show: true, title, message, iconImage, buttonText, onConfirm });
   };
 
+  // helper untuk buka Snap (dipakai pertama kali dan saat lanjutkan bayar)
+  const openSnap = (token, pesananId) => {
+    if (!window.snap) return;
+
+    window.snap.pay(token, {
+      onSuccess: () => {
+        showNotification(
+          "Pembayaran Berhasil",
+          "Pesananmu sudah diterima.",
+          successIcon,
+          "Lanjut",
+          () =>
+            navigate("/TimeEstimatePage", {
+              state: { pesananId },
+            })
+        );
+      },
+      onPending: () =>
+        showNotification(
+          "Menunggu Pembayaran",
+          "Selesaikan pembayaranmu.",
+          pendingIcon,
+          // tekan ini untuk lanjutkan bayar tanpa bikin pesanan baru
+          "Lanjutkan Bayar",
+          () => openSnap(token, pesananId)
+        ),
+      onError: () =>
+        showNotification(
+          "Pembayaran Gagal",
+          "Terjadi kesalahan pembayaran.",
+          errorIcon
+        ),
+      onClose: () =>
+        showNotification(
+          "Pembayaran Gagal",
+          "Terjadi kesalahan pembayaran.",
+          errorIcon,
+          // biar bisa lanjutkan dari pop-up ditutup
+          "Lanjutkan Bayar",
+          () => openSnap(token, pesananId)
+        ),
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    //  Jika sudah punya token aktif, cukup buka ulang Snap (lanjutkan bayar)
+    if (activeSnapToken && activePesananId) {
+      openSnap(activeSnapToken, activePesananId);
+      return;
+    }
+
     if (!isFormValid) return;
 
     try {
@@ -91,61 +147,36 @@ export default function OrderForm({
         })),
       };
 
-      console.log("Payload pesanan:", payloadPesanan);
-
       const resPesanan = await Pesanan.buatPesanan(payloadPesanan);
       const newPesananId = resPesanan.pesanan?.id;
-
       if (!newPesananId) {
         throw new Error("Gagal mendapatkan ID Pesanan dari server.");
       }
 
-      // Buat transaksi Midtrans
+      // Buat transaksi Midtrans (token)
       const resTransaksi = await Payment.buatTransaksiMidtrans({
         pesanan_id: newPesananId,
         guest_id: localStorage.getItem("guest_id"),
         total_harga: totalPrice,
       });
 
-      const snapToken = resTransaksi.token;
-
-      if (!snapToken) {
+      const token = resTransaksi.token;
+      if (!token) {
         throw new Error("Gagal mendapatkan token pembayaran dari server.");
       }
 
-      window.snap.pay(snapToken, {
-        onSuccess: () => {
-          showNotification(
-            "Pembayaran Berhasil",
-            "Pesananmu sudah diterima.",
-            successIcon,
-            "Lanjut",
-            () =>
-              navigate("/TimeEstimatePage", {
-                state: { pesananId: newPesananId },
-              })
-          );
-        },
-        onPending: () =>
-          showNotification(
-            "Menunggu Pembayaran",
-            "Selesaikan pembayaranmu.",
-            pendingIcon
-          ),
-        onError: () =>
-          showNotification(
-            "Pembayaran Gagal",
-            "Terjadi kesalahan pembayaran.",
-            errorIcon
-          ),
-        onClose: () => console.log("Snap ditutup tanpa penyelesaian."),
-      });
+      // simpan agar bisa dibuka lagi tanpa bikin pesanan baru
+      setActivePesananId(newPesananId);
+      setActiveSnapToken(token);
+
+      // buka Snap pertama kali
+      openSnap(token, newPesananId);
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
         err.message ||
         "Terjadi kesalahan, silakan coba lagi.";
-      console.error("❌ Proses pemesanan gagal:", err);
+      console.error("Proses pemesanan gagal:", err);
       showNotification("Pemesanan Gagal", errorMessage, errorIcon);
     } finally {
       setLoading(false);
@@ -189,9 +220,17 @@ export default function OrderForm({
         {showPayButton && (
           <PrimaryButton
             type="submit"
-            text={loading ? "Memproses..." : "Bayar"}
+            text={
+              loading
+                ? "Memproses..."
+                : activeSnapToken
+                ? "Lanjutkan Bayar"
+                : "Bayar"
+            }
             className="w-full py-2"
-            disabled={!isFormValid || loading || !snapReady}
+            disabled={
+              (!isFormValid && !activeSnapToken) || loading || !snapReady
+            }
           />
         )}
       </form>
