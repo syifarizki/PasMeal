@@ -16,7 +16,7 @@ export default function OrderForm({
   qty,
   kiosId,
   totalPrice,
-  items = [], // <-- pastikan items diterima sebagai prop
+  items = [],
   showPayButton = true,
   initialData = {},
 }) {
@@ -54,8 +54,9 @@ export default function OrderForm({
     qty > 0 &&
     nama.trim() &&
     noHp.trim() &&
+    catatan.trim() &&
     (deliveryType !== "diantar" || diantarKe.trim()) &&
-    items.length > 0; // pastikan ada item
+    items.length > 0; 
 
   const showNotification = (
     title,
